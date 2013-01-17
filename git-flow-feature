@@ -402,7 +402,7 @@ helper_finish_notice() {
     echo "Finished feature $BRANCH";
     echo "-------------------------------------------------------------";
     echo "    Once the build is green you can remove this feature with:";
-    echo "    $ git-flow feature cleanup $BRANCH";
+    echo "    \$ git-flow feature cleanup $BRANCH";
     echo;
 }
 
