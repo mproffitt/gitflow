@@ -13,11 +13,11 @@ if [ -z "$INSTALL_PREFIX" ] ; then
 fi
 
 if [ -z "$REPO_NAME" ] ; then
-	REPO_NAME="gitflow"
+	REPO_NAME="GitFlow"
 fi
 
 if [ -z "$REPO_HOME" ] ; then
-	REPO_HOME="http://github.com/nvie/gitflow.git"
+	REPO_HOME="http://git.internal.plus.net/plusnet/GitFlow.git"
 fi
 
 EXEC_FILES="git-flow"
@@ -49,29 +49,31 @@ case "$1" in
 		exit
 		;;
 	*)
-		echo "Installing git-flow to $INSTALL_PREFIX"
-		if [ -d "$REPO_NAME" -a -d "$REPO_NAME/.git" ] ; then
-			echo "Using existing repo: $REPO_NAME"
-		else
-			echo "Cloning repo from GitHub to $REPO_NAME"
-			git clone "$REPO_HOME" "$REPO_NAME"
+		gitstatus=$(git st 2>&1 | cut -d: -f1);
+		if [ "$(basename `pwd`)" != "$REPO_NAME" ] || [ "fatal" == "$gitstatus" ] ; then
+			echo "Installing git-flow to $INSTALL_PREFIX"
+			if [ -d "$REPO_NAME" -a -d "$REPO_NAME/.git" ] ; then
+				echo "Using existing repo: $REPO_NAME"
+			else
+				echo "Cloning repo from Plusnet to $REPO_NAME"
+				git clone "$REPO_HOME" "$REPO_NAME"
+			fi
+			cd "$REPO_NAME"
 		fi
-		if [ -f "$REPO_NAME/$SUBMODULE_FILE" ] ; then
+		if [ -f "$SUBMODULE_FILE" ] ; then
 			echo "Submodules look up to date"
 		else
 			echo "Updating submodules"
-			lastcwd=$PWD
-			cd "$REPO_NAME"
 			git submodule init
 			git submodule update
-			cd "$lastcwd"
 		fi
+
 		install -v -d -m 0755 "$INSTALL_PREFIX"
 		for exec_file in $EXEC_FILES ; do
-			install -v -m 0755 "$REPO_NAME/$exec_file" "$INSTALL_PREFIX"
+			ln -s -f "$(pwd)/$exec_file" "$INSTALL_PREFIX"
 		done
 		for script_file in $SCRIPT_FILES ; do
-			install -v -m 0644 "$REPO_NAME/$script_file" "$INSTALL_PREFIX"
+			ln -s -f "$(pwd)/$script_file" "$INSTALL_PREFIX"
 		done
 		exit
 		;;
