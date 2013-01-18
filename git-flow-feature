@@ -231,6 +231,9 @@ cmd_start() {
 }
 
 cmd_cleanup() {
+    DEFINE_boolean fetch false "fetch from $ORIGIN before performing finish" F
+    DEFINE_boolean rebase false "rebase instead of merge" r
+    DEFINE_boolean squash false "squash feature during merge" S
     DEFINE_boolean keep false "keep branch after performing finish" k
     DEFINE_boolean force_delete false "force delete feature branch after finish" D¬
     parse_args "$@"
@@ -402,7 +405,7 @@ helper_finish_notice() {
     echo "Finished feature $BRANCH";
     echo "-------------------------------------------------------------";
     echo "    Once the build is green you can remove this feature with:";
-    echo "    \$ git-flow feature cleanup $BRANCH";
+    echo "    \$ git-flow feature cleanup $NAME";
     echo;
 }
 
