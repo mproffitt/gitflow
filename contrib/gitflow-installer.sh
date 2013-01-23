@@ -20,7 +20,7 @@ if [ -z "$REPO_HOME" ] ; then
 	REPO_HOME="http://git.internal.plus.net/plusnet/GitFlow.git"
 fi
 
-EXEC_FILES="git-flow"
+EXEC_FILES="git-flow contrib/completion/git-flow-completion.bash"
 SCRIPT_FILES="git-flow-init git-flow-feature git-flow-hotfix git-flow-release git-flow-support git-flow-version gitflow-common gitflow-shFlags"
 SUBMODULE_FILE="gitflow-shFlags"
 
@@ -75,6 +75,15 @@ case "$1" in
 		for script_file in $SCRIPT_FILES ; do
 			ln -s -f "$(pwd)/$script_file" "$INSTALL_PREFIX"
 		done
-		exit
 		;;
 esac
+
+echo;
+echo "Git flow tab completion file installed to '$INSTALL_PREFIX/git-flow-completion.bash'";
+echo "To enable, please add the following to your '~/.bash_profile' or '~/.bashrc' file";
+echo;
+echo "    source $INSTALL_PREFIX/git-flow-completion.bash";
+echo;
+echo "Installation complete";
+
+exit;
