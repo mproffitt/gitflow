@@ -235,7 +235,7 @@ cmd_cleanup() {
     DEFINE_boolean rebase false "rebase instead of merge" r
     DEFINE_boolean squash false "squash feature during merge" S
     DEFINE_boolean keep false "keep branch after performing finish" k
-    DEFINE_boolean force_delete false "force delete feature branch after finish" D¬
+    DEFINE_boolean force_delete false "force delete feature branch after finish" D
     parse_args "$@"
     expand_nameprefix_arg_or_current
 
@@ -385,6 +385,7 @@ helper_finish_cleanup() {
 		else
 			git_do branch -d "$BRANCH"
 		fi
+        git_do push "$ORIGIN" ":$BRANCH"
 	fi
 
 	echo
