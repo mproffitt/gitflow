@@ -62,7 +62,7 @@ get_branch_name() {
 
 force_branch_rename() {
     FLAGS_parentStashed=$FLAGS_FALSE;
-    if [ "$(git st | grep 'working directory clean\|nothing added to commit')" == "" ] ; then
+    if [ "$(git status | grep 'working directory clean\|nothing added to commit')" == "" ] ; then
         git stash;
         FLAGS_parentStashed=$FLAGS_TRUE;
     fi
@@ -94,7 +94,7 @@ force_branch_rename() {
     done
 
     # checkout onto new CURRENT BRANCH
-    git checkout $(git config --get $(echo gitflow.prefix.$BRANCH_TYPE))$(echo $CURRENT_BRANCH | sed 's/[\\\/-_.]/ /' | cut -d\  -f2);
+    git checkout $(git config --get $(echo "gitflow.prefix.$BRANCH_TYPE"))$(echo "$CURRENT_BRANCH" | sed 's/[\\\/-_.]/ /' | cut -d\  -f2);
     if flag parentStashed; then
     	git stash pop;
     fi

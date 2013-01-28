@@ -365,7 +365,7 @@ cmd_rename() {
     fi
 
     # stash any current changes
-    if [ "$(git st | grep 'working directory clean\|nothing added to commit')" == "" ] ; then
+    if [ "$(git status | grep 'working directory clean\|nothing added to commit')" == "" ] ; then
         git stash;
         FLAGS_stashed=$FLAGS_TRUE;
     fi
