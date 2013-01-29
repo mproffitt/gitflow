@@ -9,17 +9,17 @@
 #    http://github.com/nvie/gitflow
 #
 # Copyright 2010 Vincent Driessen. All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
-# 
+#
 #    1. Redistributions of source code must retain the above copyright notice,
 #       this list of conditions and the following disclaimer.
-# 
+#
 #    2. Redistributions in binary form must reproduce the above copyright
 #       notice, this list of conditions and the following disclaimer in the
 #       documentation and/or other materials provided with the distribution.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY VINCENT DRIESSEN ``AS IS'' AND ANY EXPRESS OR
 # IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
 # MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
@@ -30,7 +30,7 @@
 # OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-# 
+#
 # The views and conclusions contained in the software and documentation are
 # those of the authors and should not be interpreted as representing official
 # policies, either expressed or implied, of Vincent Driessen.
@@ -46,12 +46,77 @@ parse_args() {
 	eval set -- "${FLAGS_ARGV}"
 }
 
+##
+# Checks the branch names for the current repo and replaces them with
+# defaults.
+force_reset_plusnet_defaults() {
+    git_do config --unset gitflow.prefix.feature
+    git_do config --unset gitflow.prefix.release
+    git_do config --unset gitflow.prefix.hotfix
+    git_do config --unset gitflow.prefix.support
+}
+
+get_branch_name() {
+	echo $1 | sed "s/$(echo $2 | sed s/\\\//\\\\\\//)//";
+}
+
+force_branch_rename() {
+    FLAGS_parentStashed=$FLAGS_FALSE;
+    if [ "$(git status | grep 'working directory clean\|nothing added to commit')" == "" ] ; then
+        git stash;
+        FLAGS_parentStashed=$FLAGS_TRUE;
+    fi
+    CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD);
+    BRANCH_TYPE=$(git config --get $(echo "gitflow.prefix.$(echo $CURRENT_BRANCH | sed 's/[\\\/-_.]/ /' | cut -d\  -f1)") | sed s/.$//);
+
+    # rename feature branches
+    for branch in $(git branch | grep "$FLAGS_oFeature" | tr "*" " " | sed "s/ //g"); do
+        git checkout $branch;
+        git flow feature rename -r $(get_branch_name $branch $FLAGS_oFeature);
+    done
+
+    # rename release branches
+    for branch in $(git branch | grep "$FLAGS_oRelease" | tr "*" " " | sed "s/ //g"); do
+        git checkout $branch;
+        git flow release rename -r $(get_branch_name $branch $FLAGS_oRelease);
+    done
+
+    # rename hotfix branches
+    for branch in $(git branch | grep "$FLAGS_oHotfix" | tr "*" " " | sed "s/ //g"); do
+        git checkout $branch;
+        git flow hotfix rename -r $(get_branch_name $branch $FLAGS_oHotfix);
+    done
+
+    # rename support branches
+    for branch in $(git branch | grep "$FLAGS_oSupport" | tr "*" " " | sed "s/ //g"); do
+        git checkout $branch;
+        git flow support rename -r $(get_branch_name $branch $FLAGS_oSupport);
+    done
+
+    # checkout onto new CURRENT BRANCH
+    git checkout $(git config --get $(echo "gitflow.prefix.$BRANCH_TYPE"))$(echo "$CURRENT_BRANCH" | sed 's/[\\\/-_.]/ /' | cut -d\  -f2);
+    if flag parentStashed; then
+    	git stash pop;
+    fi
+}
+
 # Default entry when no SUBACTION is given
 cmd_default() {
 	DEFINE_boolean force false 'force setting of gitflow branches, even if already configured' f
-	DEFINE_boolean defaults false 'use default branch naming conventions' d
+	DEFINE_boolean defaults true 'use default branch naming conventions' d
+    DEFINE_boolean reset false 'reset current defaults (implies -f)' R
 	parse_args "$@"
-	
+
+    if flag reset; then
+    	FLAGS_oFeature=$(git config --get gitflow.prefix.feature);
+    	FLAGS_oRelease=$(git config --get gitflow.prefix.release);
+    	FLAGS_oHotfix=$(git config --get gitflow.prefix.hotfix);
+    	FLAGS_oSupport=$(git config --get gitflow.prefix.support);
+
+        FLAGS_force=$FLAGS_TRUE;
+        force_reset_plusnet_defaults;
+    fi
+
 	if ! git rev-parse --git-dir >/dev/null 2>&1; then
 		git_do init
 	else
@@ -106,7 +171,7 @@ cmd_default() {
 				fi
 			done
 		fi
-		
+
 		printf "Branch name for production releases: [$default_suggestion] "
 		if noflag defaults; then
 			read answer
@@ -158,12 +223,12 @@ cmd_default() {
 					break
 				fi
 			done
-			
+
 			if [ -z $default_suggestion ]; then
 				should_check_existence=NO
 				default_suggestion=$(git config --get gitflow.branch.develop || echo develop)
 			fi
-			
+
 		fi
 
 		printf "Branch name for \"next release\" development: [$default_suggestion] "
@@ -230,10 +295,10 @@ cmd_default() {
 
 	# finally, ask the user for naming conventions (branch and tag prefixes)
 	if flag force || \
-	   ! git config --get gitflow.prefix.feature >/dev/null 2>&1 || 
-	   ! git config --get gitflow.prefix.release >/dev/null 2>&1 || 
-	   ! git config --get gitflow.prefix.hotfix >/dev/null 2>&1 || 
-	   ! git config --get gitflow.prefix.support >/dev/null 2>&1 || 
+	   ! git config --get gitflow.prefix.feature >/dev/null 2>&1 ||
+	   ! git config --get gitflow.prefix.release >/dev/null 2>&1 ||
+	   ! git config --get gitflow.prefix.hotfix >/dev/null 2>&1 ||
+	   ! git config --get gitflow.prefix.support >/dev/null 2>&1 ||
 	   ! git config --get gitflow.prefix.versiontag >/dev/null 2>&1; then
 		echo
 		echo "How to name your supporting branch prefixes?"
@@ -243,7 +308,7 @@ cmd_default() {
 
 	# Feature branches
 	if ! git config --get gitflow.prefix.feature >/dev/null 2>&1 || flag force; then
-		default_suggestion=$(git config --get gitflow.prefix.feature || echo feature/)
+		default_suggestion=$(git config --get gitflow.prefix.feature || echo "feature-")
 		printf "Feature branches? [$default_suggestion] "
 		if noflag defaults; then
 			read answer
@@ -256,7 +321,7 @@ cmd_default() {
 
 	# Release branches
 	if ! git config --get gitflow.prefix.release >/dev/null 2>&1 || flag force; then
-		default_suggestion=$(git config --get gitflow.prefix.release || echo release/)
+		default_suggestion=$(git config --get gitflow.prefix.release || echo "release-")
 		printf "Release branches? [$default_suggestion] "
 		if noflag defaults; then
 			read answer
@@ -270,7 +335,7 @@ cmd_default() {
 
 	# Hotfix branches
 	if ! git config --get gitflow.prefix.hotfix >/dev/null 2>&1 || flag force; then
-		default_suggestion=$(git config --get gitflow.prefix.hotfix || echo hotfix/)
+		default_suggestion=$(git config --get gitflow.prefix.hotfix || echo "hotfix-")
 		printf "Hotfix branches? [$default_suggestion] "
 		if noflag defaults; then
 			read answer
@@ -284,7 +349,7 @@ cmd_default() {
 
 	# Support branches
 	if ! git config --get gitflow.prefix.support >/dev/null 2>&1 || flag force; then
-		default_suggestion=$(git config --get gitflow.prefix.support || echo support/)
+		default_suggestion=$(git config --get gitflow.prefix.support || echo "support-")
 		printf "Support branches? [$default_suggestion] "
 		if noflag defaults; then
 			read answer
@@ -311,6 +376,10 @@ cmd_default() {
 
 
 	# TODO: what to do with origin?
+
+	if flag reset; then
+		force_branch_rename;
+	fi
 }
 
 cmd_help() {
