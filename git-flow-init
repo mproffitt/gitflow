@@ -62,7 +62,7 @@ get_branch_name() {
 
 force_branch_rename() {
     FLAGS_parentStashed=$FLAGS_FALSE;
-    if [ "$(git status | grep 'working directory clean\|nothing added to commit')" == "" ] ; then
+    if [ "$(git status | grep 'working directory clean\|nothing added to commit')" = "" ] ; then
         git stash;
         FLAGS_parentStashed=$FLAGS_TRUE;
     fi

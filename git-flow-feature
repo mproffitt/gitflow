@@ -250,7 +250,7 @@ cmd_cleanup() {
     echo "Is the build green (y/n)? > \c";
     read buildsuccess;
 
-    if [ "$buildsuccess" == "y" ] ; then
+    if [ "$buildsuccess" = "y" ] ; then
         helper_finish_cleanup;
     fi
 }
