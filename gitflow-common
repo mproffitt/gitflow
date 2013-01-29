@@ -334,8 +334,8 @@ cmd_rename() {
         git fetch "$ORIGIN";
     fi
 
-    if [ "$PREFIX" == "$(git config --get gitflow.prefix.release)" ] ||
-        [ "$PREFIX" == "$(git config --get gitflow.prefix.support)" ] ;
+    if [ "$PREFIX" = "$(git config --get gitflow.prefix.release)" ] ||
+        [ "$PREFIX" = "$(git config --get gitflow.prefix.support)" ] ;
     then
         require_version_arg;
     else
@@ -359,13 +359,13 @@ cmd_rename() {
     if noflag force; then
         echo "Are you sure you wish to continue? (y/n) \c";
         read buildsuccess;
-        if [ "$buildsuccess" == "n" ] ; then
+        if [ "$buildsuccess" = "n" ] ; then
             exit;
         fi
     fi
 
     # stash any current changes
-    if [ "$(git status | grep 'working directory clean\|nothing added to commit')" == "" ] ; then
+    if [ "$(git status | grep 'working directory clean\|nothing added to commit')" = "" ] ; then
         git stash;
         FLAGS_stashed=$FLAGS_TRUE;
     fi
