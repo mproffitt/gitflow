@@ -314,14 +314,14 @@ cmd_finish() {
 	fi
 
 
-    # Merge into any active release branches.
+    # Merge into any active release or hotfix branches.
     # This will force a fetch regardless of whether it has been specified or
     # not to ensure that any release branches exist locally.
     git_do fetch origin;
-    releaseBranches=$(git_do remote show origin | awk '{print $1;}' | grep "^release");
+    releaseBranches=$(git_do remote show origin | awk '{print $1;}' | grep "^release\|^hotfix");
     if [ $? -eq 0 ] ; then
         for releaseBranch in $releaseBranches ; do
-            if ! git_is_branch_merged_into "$BRANCH" "$releaseBranch"; then
+            if [ "$BRANCH" != "$releaseBranch" ] && ! git_is_branch_merged_into "$BRANCH" "$releaseBranch"; then
                 git_do checkout "$releaseBranch" || warn "Could not checkout onto $releaseBranch";
 
                 git_do merge --no-ff "$releaseBranch" \
