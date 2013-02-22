@@ -364,6 +364,9 @@ cmd_finish() {
 		exit 1
 	fi
 
+    # If no merge conflicts have been found we canpush to origin
+    git_do push origin "$DEVELOP_BRANCH";
+
 	# when no merge conflict is detected, just clean up the feature branch
 	helper_finish_notice
 }
