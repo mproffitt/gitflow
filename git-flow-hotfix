@@ -9,17 +9,17 @@
 #    http://github.com/nvie/gitflow
 #
 # Copyright 2010 Vincent Driessen. All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
-# 
+#
 #    1. Redistributions of source code must retain the above copyright notice,
 #       this list of conditions and the following disclaimer.
-# 
+#
 #    2. Redistributions in binary form must reproduce the above copyright
 #       notice, this list of conditions and the following disclaimer in the
 #       documentation and/or other materials provided with the distribution.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY VINCENT DRIESSEN ``AS IS'' AND ANY EXPRESS OR
 # IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
 # MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
@@ -30,7 +30,7 @@
 # OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-# 
+#
 # The views and conclusions contained in the software and documentation are
 # those of the authors and should not be interpreted as representing official
 # policies, either expressed or implied, of Vincent Driessen.
@@ -245,7 +245,7 @@ cmd_finish() {
 	DEFINE_string signingkey "" "use the given GPG-key for the digital signature (implies -s)" u
 	DEFINE_string message "" "use the given tag message" m
 	DEFINE_string messagefile "" "use the contents of the given file as tag message" f
-	DEFINE_boolean push false "push to $ORIGIN after performing finish" p
+	DEFINE_boolean push true "push to $ORIGIN after performing finish" p
 	DEFINE_boolean keep false "keep branch after performing finish" k
 	DEFINE_boolean notag false "don't tag this release" n
 	parse_args "$@"
@@ -312,6 +312,25 @@ cmd_finish() {
 		  die "There were merge conflicts."
 		  # TODO: What do we do now?
 	fi
+
+
+    # Merge into any active release or hotfix branches.
+    # This will force a fetch regardless of whether it has been specified or
+    # not to ensure that any release branches exist locally.
+    git_do fetch origin;
+    releaseBranches=$(git_do remote show origin | awk '{print $1;}' | grep "^release\|^hotfix");
+    if [ $? -eq 0 ] ; then
+        for releaseBranch in $releaseBranches ; do
+            if [ "$BRANCH" != "$releaseBranch" ] && ! git_is_branch_merged_into "$BRANCH" "$releaseBranch"; then
+                git_do checkout "$releaseBranch" || warn "Could not checkout onto $releaseBranch";
+
+                git_do merge --no-ff "$releaseBranch" \
+                    || die "There were merge conflicts whilst merging into $releaseBranch";
+
+                git_do push origin "$releaseBranch" || warn "Could not push to origin/$releaseBranch";
+            fi
+        done
+    fi
 
 	# delete branch
 	if noflag keep; then
