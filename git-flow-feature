@@ -258,7 +258,7 @@ cmd_cleanup() {
     # link the feature branch to the release in jira.
     if [ "${@: -1}" != "$NAME" ] ; then
         gitFlowDir=$(dirname $(ls -l `echo $0` | awk '{print $NF}'));
-        source "$gitFlowDir/link-jira-issue";
+        source "$gitFlowDir/link-jira-issue" &>/dev/null;
         _link_jira_issue "${@: -1}";
     fi
 }
