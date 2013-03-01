@@ -1,0 +1,182 @@
+#!/bin/bash
+[ ! -z $_username ] || _username="";
+
+##
+# Gets the JIRA username for the current user.
+#
+# This method gets the jira username from stdin or
+# uses the shell user if not specified.
+#
+# @return void
+#
+function _get_username ()
+{
+    echo -n "Please enter your jira username ($(whoami)): ";
+    read _username;
+    if [ -z $username ] ; then
+        _username=$(whoami);
+    fi
+}
+
+##
+# Get the users jira password
+#
+# @param string feature The feature task to link
+# @param string release The release task to link to.
+#
+# @return void
+#
+function _read_password ()
+{
+    local feature=$1;
+    local release=$2;
+    if [ -z $_username ] ; then
+        _get_username;
+    fi
+
+    echo -n "Please enter the jira password for $_username: ";
+    read -s password;
+    echo;
+    _add_feature_to_release $_username $password $feature $release;
+}
+
+##
+# Links a feature task to a release management task
+#
+# @param string username The jira user to log in as.
+# @param string password The password to log into jira with.
+# @param string feature  The feature to link.
+# @param string release  The release to link to.
+#
+# @return int 0 on success, 1-5 on error
+#
+function _add_feature_to_release ()
+{
+    local username=$1;
+    local password=$2;
+    local feature=$3;
+    local release=$4;
+    local type='Change Management';
+    local repoName=$(_get_repo_name);
+
+    local address='http://jira.internal.plus.net/rest/api/latest/issueLink';
+
+    local data='{ "linkType": "'$type'", "fromIssueKey": "'$release'", "toIssueKey": "'$feature'", ';
+          data=$data'"comment": { "body": "Added feature '$feature' of '$repoName' to release" } }';
+    local result=$(
+        curl -D- -u $username:$password -X POST -H "Content-Type: application/json" --data "$data" $address 2>/dev/null
+    );
+    local responseCode=$(echo $result | grep 'HTTP' | cut -d\  -f2);
+    case $responseCode in
+        200)
+            echo "Feature linked to Release Management task $release";
+            return 0;
+        ;;
+        400)
+            echo "Failed to link issue due to an invalid comment value" >&2;
+            return 1;
+        ;;
+        401)
+            echo $result | grep 'AUTHENTICATED_FAILED' &>/dev/null;
+            returnVal=$?;
+            if [ $returnVal -eq 0 ] ; then
+                echo 'Failed to link issue. Invalid password supplied.';
+                _read_password $feature $release;
+                return $?;
+            else
+                echo $result | grep 'AUTHENTICATION_DENIED' &>/dev/null;
+                returnVal=$?;
+                if [ $returnVal -eq 0 ] ; then
+                    echo 'Failed to link issue due to multiple failed login attempts.' >&2;
+                    echo 'Please log out of Jira using your web browser and validate with the captcha before trying again' >&2;
+                    return 2;
+                else
+                    echo 'Failed to link issue due to invalid permissions' >&2;
+                fi
+            fi
+            return 3;
+        ;;
+        404)
+            echo "Cannot find one of the supplied issues. Please check and try again" >&2;
+            return 4;
+        ;;
+        500)
+            echo "Malformed request. Please correct supplied JSON and try again" >&2;
+            echo "JSON String:" >&2;
+            echo "$data" >&2;
+            return 5;
+        ;;
+    esac
+}
+
+##
+# Works out the name of the current repository
+#
+# @return int 1 if the current directory or parent is not a git repo
+#
+function _get_repo_name ()
+{
+    wd=$(pwd);
+    while [ ! -d ".git" ]  && [ "$(pwd)" != "/" ] ; do
+        cd ..;
+    done
+
+    local moduleName=$(basename `pwd`);
+    cd $wd;
+    if [ "$moduleName" = "/" ] ; then
+        echo "Cannot find root directory for current module. Are you sure it's a git repository?" >&2;
+        return 1;
+    fi
+    echo $moduleName;
+    return 0;
+}
+
+##
+# Gets the JIRA ticket from the current feature branch name
+#
+# @return void
+#
+function _get_ticket_id_from_feature_name ()
+{
+    if [ "$NAME" = "" ] ; then
+        NAME=$(git rev-parse --abbrev-ref HEAD | cut -d- -f2- );
+    fi
+    echo $NAME | cut -d- -f1,2; # returns JIRA-1234
+}
+
+##
+# Prints the script usage
+#
+# @return void
+#
+function _usage()
+{
+    echo "$(basename $0) <releaseId> [<featureId>]";
+    echo "    Release ID is the JIRA task number for the release you want this feature to be part of";
+    echo "    Feature ID is optional. If not specified it will be taken from the current branch";
+    return 0;
+}
+
+##
+# Entry point to the script
+#
+# @return void
+#
+function _link_jira_issue ()
+{
+    local release=$1;
+    if [ "$release" = "" ] ; then
+        echo "You must specify a release id";
+        _usage;
+        return 1;
+    fi
+    local feature=$2;
+    if [ "$2" = "" ] ; then
+        feature=$(_get_ticket_id_from_feature_name);
+    fi
+
+    echo "Linking feature $feature to Release Management task $release";
+    _read_password $feature $release;
+}
+
+_link_jira_issue $@;
