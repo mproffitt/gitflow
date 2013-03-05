@@ -20,7 +20,7 @@ if [ -z "$REPO_HOME" ] ; then
 	REPO_HOME="http://git.internal.plus.net/plusnet/GitFlow.git"
 fi
 
-EXEC_FILES="git-flow contrib/completion/git-flow-completion.bash"
+EXEC_FILES="git-flow contrib/completion/git-flow-completion.bash link-jira-issue"
 SCRIPT_FILES="git-flow-init git-flow-feature git-flow-hotfix git-flow-release git-flow-support git-flow-version gitflow-common gitflow-shFlags"
 SUBMODULE_FILE="gitflow-shFlags"
 
@@ -54,11 +54,17 @@ case "$1" in
 			echo "Installing git-flow to $INSTALL_PREFIX"
 			if [ -d "$REPO_NAME" -a -d "$REPO_NAME/.git" ] ; then
 				echo "Using existing repo: $REPO_NAME"
+                echo "Updating $REPO_NAME.";
+                cd $REPO_NAME;
+                git checkout master;
+                git pull origin master;
+                git checkout develop;
+                git pull origin develop;
 			else
 				echo "Cloning repo from Plusnet to $REPO_NAME"
 				git clone "$REPO_HOME" "$REPO_NAME"
+			    cd "$REPO_NAME"
 			fi
-			cd "$REPO_NAME"
 		fi
 		if [ -f "$SUBMODULE_FILE" ] ; then
 			echo "Submodules look up to date"
