@@ -11,7 +11,7 @@
 #
 function _get_username ()
 {
-    echo -n "Please enter your jira username ($(whoami)): ";
+    echo "Please enter your jira username ($(whoami)): \c";
     read _username;
     if [ -z $username ] ; then
         _username=$(whoami);
@@ -34,7 +34,7 @@ function _read_password ()
         _get_username;
     fi
 
-    echo -n "Please enter the jira password for $_username: ";
+    echo "Please enter the jira password for $_username: \c";
     read -s password;
     echo;
     _add_feature_to_release $_username $password $feature $release;
@@ -191,4 +191,5 @@ function _link_jira_issue ()
     _read_password $feature $release;
 }
 
-_link_jira_issue $@;
+# echo "$@"; exit;
+# _link_jira_issue $@;
