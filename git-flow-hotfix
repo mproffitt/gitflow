@@ -324,12 +324,13 @@ cmd_finish() {
             if [ "$BRANCH" != "$releaseBranch" ] && ! git_is_branch_merged_into "$BRANCH" "$releaseBranch"; then
                 git_do checkout "$releaseBranch" || warn "Could not checkout onto $releaseBranch";
 
-                git_do merge --no-ff "$releaseBranch" \
+                git_do merge --no-ff -m"Merging $BRANCH into $releaseBranch" "$BRANCH" \
                     || die "There were merge conflicts whilst merging into $releaseBranch";
 
                 git_do push origin "$releaseBranch" || warn "Could not push to origin/$releaseBranch";
             fi
         done
+        git_do checkout develop;
     fi
 
 	# delete branch

@@ -251,15 +251,14 @@ cmd_cleanup() {
     read buildsuccess;
 
     if [ "$buildsuccess" = "y" ] ; then
+        # if a release feature has been specified (last arg) then
+        # link the feature branch to the release in jira.
+        if [ "${@: -1}" != "$NAME" ] ; then
+            echo $NAME;
+            gitFlowDir=$(dirname $(ls -l `echo $0` | awk '{print $NF}'));
+            exec "$gitFlowDir/link-jira-issue" "${@: -1}" "feature-$NAME";
+        fi
         helper_finish_cleanup;
-    fi
-
-    # if a release feature has been specified (last arg) then
-    # link the feature branch to the release in jira.
-    if [ "${@: -1}" != "$NAME" ] ; then
-        gitFlowDir=$(dirname $(ls -l `echo $0` | awk '{print $NF}'));
-        source "$gitFlowDir/link-jira-issue" &>/dev/null;
-        _link_jira_issue "${@: -1}";
     fi
 }
 

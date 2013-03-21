@@ -11,7 +11,7 @@
 #
 function _get_username ()
 {
-    echo -n "Please enter your jira username ($(whoami)): ";
+    echo "Please enter your jira username ($(whoami)): \c";
     read _username;
     if [ -z $username ] ; then
         _username=$(whoami);
@@ -34,7 +34,7 @@ function _read_password ()
         _get_username;
     fi
 
-    echo -n "Please enter the jira password for $_username: ";
+    echo "Please enter the jira password for $_username: \c";
     read -s password;
     echo;
     _add_feature_to_release $_username $password $feature $release;
@@ -141,6 +141,10 @@ function _get_ticket_id_from_feature_name ()
     if [ "$NAME" = "" ] ; then
         NAME=$(git rev-parse --abbrev-ref HEAD | cut -d- -f2- );
     fi
+    echo feature-PII-282-mp-test-feature | grep ^feature &>/dev/null;
+    if [ $? -eq 0 ] ; then
+        NAME=$(echo $NAME | sed 's/^feature-//');
+    fi
     echo $NAME | cut -d- -f1,2; # returns JIRA-1234
 }
 
@@ -165,7 +169,7 @@ function _usage()
 function _link_jira_issue ()
 {
     local release=$1;
-    if [ "$release" = "" ] ; then
+    if [ -z $release ] ; then
         echo "You must specify a release id";
         _usage;
         return 1;
@@ -173,10 +177,19 @@ function _link_jira_issue ()
     local feature=$2;
     if [ "$2" = "" ] ; then
         feature=$(_get_ticket_id_from_feature_name);
+    else
+        if [ "$(echo $2 | cut -d- -f1)" = "feature" ] ; then
+            NAME=$2;
+            echo "-----------"
+            echo "NAME=$NAME";
+            echo "-----------"
+            feature=$(_get_ticket_id_from_feature_name);
+        fi
     fi
 
     echo "Linking feature $feature to Release Management task $release";
     _read_password $feature $release;
 }
 
-_link_jira_issue $@;
+# echo "$@"; exit;
+# _link_jira_issue $@;
