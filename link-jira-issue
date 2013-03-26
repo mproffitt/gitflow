@@ -191,5 +191,4 @@ function _link_jira_issue ()
     _read_password $feature $release;
 }
 
-# echo "$@"; exit;
-# _link_jira_issue $@;
+_link_jira_issue $@;
