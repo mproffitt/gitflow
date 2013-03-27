@@ -122,9 +122,9 @@ function _get_repo_name ()
     done
 
     local moduleName=$(basename `pwd`);
-    cd $wd;
     if [ "$moduleName" = "/" ] ; then
         echo "Cannot find root directory for current module. Are you sure it's a git repository?" >&2;
+        cd $wd;
         return 1;
     fi
     echo $moduleName;

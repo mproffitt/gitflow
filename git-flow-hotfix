@@ -50,6 +50,7 @@ usage() {
 	echo "       git flow hotfix finish [-Fsumpk] <version>"
 	echo "       git flow hotfix publish <version>"
 	echo "       git flow hotfix track <version>"
+    echo "       git flow hotfix update <version>"
 }
 
 cmd_default() {
@@ -248,6 +249,7 @@ cmd_finish() {
 	DEFINE_boolean push true "push to $ORIGIN after performing finish" p
 	DEFINE_boolean keep false "keep branch after performing finish" k
 	DEFINE_boolean notag false "don't tag this release" n
+    DEFINE_boolean rebase false "rebase the release branch against master" r
 	parse_args "$@"
 	require_version_arg
 
@@ -322,10 +324,18 @@ cmd_finish() {
     if [ $? -eq 0 ] ; then
         for releaseBranch in $releaseBranches ; do
             if [ "$BRANCH" != "$releaseBranch" ] && ! git_is_branch_merged_into "$BRANCH" "$releaseBranch"; then
+                # checkout or update release branch and pull to ensure latest
                 git_do checkout "$releaseBranch" || warn "Could not checkout onto $releaseBranch";
+                git_do pull origin "$releaseBranch";
 
+                # now merge hotfix back into release branch
+                git_do checkout $releaseBranch;
                 git_do merge --no-ff -m"Merging $BRANCH into $releaseBranch" "$BRANCH" \
                     || die "There were merge conflicts whilst merging into $releaseBranch";
+
+                if flag rebase ; then
+                    git rebase master || die "There were merge conflicts whilst rebasing against the master branch";
+                fi
 
                 git_do push origin "$releaseBranch" || warn "Could not push to origin/$releaseBranch";
             fi
@@ -333,9 +343,17 @@ cmd_finish() {
         git_do checkout develop;
     fi
 
+    localDeleteSuccess=0;
+    remoteDeleteSuccess=1;
 	# delete branch
 	if noflag keep; then
 		git_do branch -d "$BRANCH"
+        localDeleteSuccess=$?;
+
+        if [ $localDeleteSuccess -eq 0 ] ; then
+            git_do push origin :"$BRANCH";
+            remoteDeleteSuccess=$?;
+        fi
 	fi
 
 	if flag push; then
@@ -357,8 +375,14 @@ cmd_finish() {
 		echo "- The hotfix was tagged '$VERSION_PREFIX$VERSION'"
 	fi
 	echo "- Hotfix branch has been back-merged into '$DEVELOP_BRANCH'"
-	if flag keep; then
+
+	if flag keep || [ $localDeleteSuccess -ne 0 ]; then
 		echo "- Hotfix branch '$BRANCH' is still available"
+    fi
+
+    if noflag keep && [ $remoteDeleteSuccess -ne 0 ] ; then
+        echo "- Hotfix branch has been deleted but is still available on the remote.";
+        echo "    run 'git push origin :$BRANCH' to delete";
 	else
 		echo "- Hotfix branch '$BRANCH' has been deleted"
 	fi
@@ -367,3 +391,44 @@ cmd_finish() {
 	fi
 	echo
 }
+
+##
+# Updates the current branch
+#
+# @return void
+#
+# This method will merge any relevant changes for
+# hotfix and feature branches. It will not
+# handle develop, support or release branches as
+# these often need more complex merges and should
+# be handled manually.
+#
+cmd_update() {
+	parse_args "$@"
+    require_version_arg;
+
+    if ! branch_valid ; then
+        invalid_branch_for_command;
+    fi
+
+    FLAGS_stashed=$FLAGS_FALSE;
+    if has_local_changes ; then
+        git_do stash;
+        FLAGS_stashed=$FLAGS_TRUE;
+    fi
+
+    git_do fetch origin;
+
+    echo "Merging master into $BRANCH";
+    git_do merge origin/master || die "There were merge conflicts whilst merging the master branch";
+
+	if has "$ORIGIN/$BRANCH" $(git_remote_branches) ; then
+        echo "Updating remote branch"
+        git_do push origin $BRANCH;
+    fi
+
+    if flag stashed ; then
+        git_do stash pop;
+    fi
+}
+

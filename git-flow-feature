@@ -54,6 +54,7 @@ usage() {
 	echo "       git flow feature checkout [<name|nameprefix>]"
 	echo "       git flow feature pull [-r] <remote> [<name>]"
     echo "       git flow feature cleanup [-kD] <name>"
+    echo "       git flow feature update <version>"
 }
 
 cmd_default() {
@@ -573,3 +574,44 @@ cmd_pull() {
 		echo "Created local branch $BRANCH based on $REMOTE's $BRANCH."
 	fi
 }
+
+##
+# Updates the current branch
+#
+# @return void
+#
+# This method will merge any relevant changes for
+# hotfix and feature branches. It will not
+# handle develop, support or release branches as
+# these often need more complex merges and should
+# be handled manually.
+#
+cmd_update() {
+	parse_args "$@"
+    require_name_arg;
+
+    if ! branch_valid ; then
+        invalid_branch_for_command;
+    fi
+
+    FLAGS_stashed=$FLAGS_FALSE;
+    if has_local_changes ; then
+        git_do stash;
+        FLAGS_stashed=$FLAGS_TRUE;
+    fi
+
+    git_do fetch origin;
+
+    echo "Merging $DEVELOP_BRANCH into $BRANCH";
+    git_do merge origin/$DEVELOP_BRANCH || die "There were merge conflicts whilst merging the develop branch";
+
+	if has "$ORIGIN/$BRANCH" $(git_remote_branches) ; then
+        echo "Updating remote branch"
+        git_do push origin $BRANCH;
+    fi
+
+    if flag stashed ; then
+        git stash pop;
+    fi
+}
+
