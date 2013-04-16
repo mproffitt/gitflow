@@ -411,7 +411,7 @@ cmd_all() {
 #
 # @return bool
 #
-function fixremote ()
+fixremote()
 {
     gitServer='git.internal.plus.net';
     gitUser='plusnet';
