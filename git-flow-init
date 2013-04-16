@@ -360,7 +360,6 @@ cmd_default() {
 		git_do config gitflow.prefix.support "$prefix"
 	fi
 
-
 	# Version tag prefix
 	if ! git config --get gitflow.prefix.versiontag >/dev/null 2>&1 || flag force; then
 		default_suggestion=$(git config --get gitflow.prefix.versiontag || echo "")
@@ -382,7 +381,71 @@ cmd_default() {
 	fi
 }
 
+cmd_all() {
+    DEFINE_boolean force false 'force setting of gitflow branches, even if already configured' f;
+    parse_args "$@"
+
+    module_root &>/dev/null;
+    if [ $? -eq 0 ] || is_git_dir `pwd` ; then
+        cd ..;
+    fi
+
+    for dir in $(ls -l | grep ^d | awk '{print $NF}') ; do
+        echo "Updating module $(basename $dir)";
+        cd $dir;
+        if is_git_dir $(pwd) ; then
+            echo "Fixing remotes for $(basename `pwd`)";
+            fix_remotes &>/dev/null;
+
+            if ! gitflow_is_initialized || flag force; then
+                echo "Running \`git flow init' for $(basename `pwd`)";
+                git flow init -f &>/dev/null;
+            fi
+        fi
+        cd ..;
+    done
+}
+
+##
+# Fixes the git remotes to point at plusnet
+#
+# @return bool
+#
+function fixremote ()
+{
+    gitServer='git.internal.plus.net';
+    gitUser='plusnet';
+
+    local wd=$(pwd);
+    # make sure we are in the base dir
+    echo "Changing back to module root";
+    module_root;
+    if [ $? -eq 0 ] ; then
+        moduleName=$(basename `pwd`);
+        echo "Updating origin";
+        git remote show origin &>/dev/null;
+        if [ $? -eq 0 ] ; then
+            git remote rm origin;
+        fi
+        git remote add origin "$gitServer:/git/$gitUser/$moduleName.git";
+
+        echo "Adding $gitUser as remote";
+        git remote show $gitUser &>/dev/null;
+        if [ $? -eq 0 ] ; then
+            git remote rm $gitUser;
+        fi
+        git remote add $gitUser "$gitServer:/git/$gitUser/$moduleName.git";
+    else
+        echo "Failed to update remote for $moduleName";
+        return 1;
+    fi
+    cd $wd;
+    echo "done";
+    return 0;
+}
+
 cmd_help() {
 	usage
 	exit 0
 }
+

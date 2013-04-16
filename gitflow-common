@@ -54,6 +54,16 @@ has() {
 	echo " $@ " | grep -q " $(escape $item) "
 }
 
+##
+# Checks to see if there are un-committed changes
+#
+# @return bool
+#
+has_local_changes() {
+    git status | grep -q 'working directory clean\|nothing added to commit';
+    [ $? -eq 0 ] && return 1 || return 0;
+}
+
 # basic math
 min() { [ "$1" -le "$2" ] && echo "$1" || echo "$2"; }
 max() { [ "$1" -ge "$2" ] && echo "$1" || echo "$2"; }
@@ -325,6 +335,49 @@ require_branches_equal() {
 	fi
 }
 
+##
+# Find the root of the current module
+#
+# @return bool
+#
+# This method finds the root directory of a given git module
+# and switches to it. It does this by searching up until it hits
+# a .git folder.
+#
+# If the .git folder doesn't exist before the function hits /
+# then the tool returns to its last location and returns false
+# with a warning
+#
+module_root() {
+    wd=$(pwd);
+    while [ ! -d ".git" ]  && [ "$(pwd)" != "/" ] ; do
+        cd ..;
+    done
+
+    if [ "$(pwd)" = "/" ] ; then
+        cd $wd;
+        warn "Cannot find git root directory for $(pwd). Are you sure it's a git repository?";
+        return 1;
+    fi
+    return 0;
+}
+
+##
+# Is this a git directory
+#
+# @param string $1 The directory to check
+#
+# @return bool
+#
+is_git_dir() {
+    test -d $1/.git;
+}
+
+##
+# Renames the current branch
+#
+# @return void
+#
 cmd_rename() {
     DEFINE_boolean force false 'Force branch renaming' r;
     DEFINE_boolean fetch false 'Fetch from origin before performing local operation' F;
@@ -365,7 +418,7 @@ cmd_rename() {
     fi
 
     # stash any current changes
-    if [ "$(git status | grep 'working directory clean\|nothing added to commit')" = "" ] ; then
+    if has_local_changes ; then
         git stash;
         FLAGS_stashed=$FLAGS_TRUE;
     fi
@@ -385,3 +438,67 @@ cmd_rename() {
         git stash pop;
     fi
 }
+
+##
+# Is this a feature branch?
+#
+# @return bool
+#
+is_feature() {
+   test "$PREFIX" = "$(git config gitflow.prefix.feature)";
+}
+
+##
+# Is this a hotfix branch
+#
+# @return bool
+#
+is_hotfix() {
+    test "$PREFIX" = "$(git config gitflow.prefix.hotfix)";
+}
+
+##
+# Is this a release branch
+#
+# @return bool
+#
+is_release() {
+    test "$PREFIX" = "$(git config gitflow.prefix.release)";
+}
+
+##
+# Is this a support branch?
+#
+# @return bool
+#
+is_support() {
+    test "$PREFIX" = "$(git config gitflow.prefix.support)";
+}
+
+##
+# Get the current branch name
+#
+# @return string
+#
+current_branch() {
+    [ ! -z $BRANCH ] && echo $BRANCH || echo $(git_do rev-parse --abbrev-ref HEAD);
+}
+
+##
+# Is the current branch valid for the given prefix
+#
+# @return bool
+#
+branch_valid() {
+    echo $(current_branch) | grep -q ^$PREFIX;
+}
+
+##
+# Terminate app function if command is invalid for current branch
+#
+# @return void
+#
+invalid_branch_for_command() {
+    die "Cannot run \`git flow $(echo $PREFIX | sed 's/.$//') update' command on a $(echo `current_branch` | cut -d- -f1) branch";
+}
+

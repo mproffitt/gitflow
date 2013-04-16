@@ -83,7 +83,7 @@ _git_flow ()
 
 __git_flow_init ()
 {
-	local subcommands="help"
+	local subcommands="help all"
 	local subcommand="$(__git_find_on_cmdline "$subcommands")"
 	if [ -z "$subcommand" ]; then
 		__gitcomp "$subcommands"
@@ -93,7 +93,7 @@ __git_flow_init ()
 
 __git_flow_feature ()
 {
-	local subcommands="list start finish publish track diff rebase checkout pull help cleanup rename"
+	local subcommands="list start finish publish track diff rebase checkout pull help cleanup rename update"
 	local subcommand="$(__git_find_on_cmdline "$subcommands")"
 	if [ -z "$subcommand" ]; then
 		__gitcomp "$subcommands"
@@ -154,7 +154,7 @@ __git_flow_release ()
 
 __git_flow_hotfix ()
 {
-	local subcommands="list start finish help rename"
+	local subcommands="list start finish help rename update"
 	local subcommand="$(__git_find_on_cmdline "$subcommands")"
 	if [ -z "$subcommand" ]; then
 		__gitcomp "$subcommands"
