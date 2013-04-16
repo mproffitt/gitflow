@@ -335,6 +335,19 @@ require_branches_equal() {
 	fi
 }
 
+##
+# Find the root of the current module
+#
+# @return bool
+#
+# This method finds the root directory of a given git module
+# and switches to it. It does this by searching up until it hits
+# a .git folder.
+#
+# If the .git folder doesn't exist before the function hits /
+# then the tool returns to its last location and returns false
+# with a warning
+#
 module_root() {
     wd=$(pwd);
     while [ ! -d ".git" ]  && [ "$(pwd)" != "/" ] ; do
@@ -349,10 +362,22 @@ module_root() {
     return 0;
 }
 
+##
+# Is this a git directory
+#
+# @param string $1 The directory to check
+#
+# @return bool
+#
 is_git_dir() {
     test -d $1/.git;
 }
 
+##
+# Renames the current branch
+#
+# @return void
+#
 cmd_rename() {
     DEFINE_boolean force false 'Force branch renaming' r;
     DEFINE_boolean fetch false 'Fetch from origin before performing local operation' F;
@@ -414,30 +439,65 @@ cmd_rename() {
     fi
 }
 
+##
+# Is this a feature branch?
+#
+# @return bool
+#
 is_feature() {
    test "$PREFIX" = "$(git config gitflow.prefix.feature)";
 }
 
+##
+# Is this a hotfix branch
+#
+# @return bool
+#
 is_hotfix() {
     test "$PREFIX" = "$(git config gitflow.prefix.hotfix)";
 }
 
+##
+# Is this a release branch
+#
+# @return bool
+#
 is_release() {
     test "$PREFIX" = "$(git config gitflow.prefix.release)";
 }
 
+##
+# Is this a support branch?
+#
+# @return bool
+#
 is_support() {
     test "$PREFIX" = "$(git config gitflow.prefix.support)";
 }
 
+##
+# Get the current branch name
+#
+# @return string
+#
 current_branch() {
     [ ! -z $BRANCH ] && echo $BRANCH || echo $(git_do rev-parse --abbrev-ref HEAD);
 }
 
+##
+# Is the current branch valid for the given prefix
+#
+# @return bool
+#
 branch_valid() {
     echo $(current_branch) | grep -q ^$PREFIX;
 }
 
+##
+# Terminate app function if command is invalid for current branch
+#
+# @return void
+#
 invalid_branch_for_command() {
     die "Cannot run \`git flow $(echo $PREFIX | sed 's/.$//') update' command on a $(echo `current_branch` | cut -d- -f1) branch";
 }
