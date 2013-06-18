@@ -130,6 +130,7 @@ cmd_update() {
     if [ $lastUpdate -lt $timestamp ] ; then
         echo "No update necessary - skipping";
         helper_lastBranch "$current";
+        cd $CWD;
         return 0;
     fi
 
