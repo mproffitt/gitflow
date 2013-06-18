@@ -10,17 +10,17 @@
 #    http://github.com/nvie/gitflow
 #
 # Copyright 2010 Vincent Driessen. All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
-# 
+#
 #    1. Redistributions of source code must retain the above copyright notice,
 #       this list of conditions and the following disclaimer.
-# 
+#
 #    2. Redistributions in binary form must reproduce the above copyright
 #       notice, this list of conditions and the following disclaimer in the
 #       documentation and/or other materials provided with the distribution.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY VINCENT DRIESSEN ``AS IS'' AND ANY EXPRESS OR
 # IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
 # MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
@@ -31,7 +31,7 @@
 # OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-# 
+#
 # The views and conclusions contained in the software and documentation are
 # those of the authors and should not be interpreted as representing official
 # policies, either expressed or implied, of Vincent Driessen.
@@ -47,7 +47,134 @@ fi
 
 # The sed expression here replaces all backslashes by forward slashes.
 # This helps our Windows users, while not bothering our Unix users.
-export GITFLOW_DIR=$(dirname "$(echo "$0" | sed -e 's,\\,/,g')")
+[ "$(dirname $0)" = '.' ] && GITFLOW_DIR=$(pwd) || GITFLOW_DIR=$(dirname $0);
+ls -l $0 | grep -q ^l && GITFLOW_DIR=$(dirname `ls -l $0 | awk '{print $NF}'`);
+export GITFLOW_DIR=$(echo "$GITFLOW_DIR" | sed -e 's,\\,/,g');
+
+timestamp() {
+    lessDays=$1;
+    _sec=86400;
+    date=$(now);
+    echo $((date - (_sec * lessDays)));
+}
+
+
+now() {
+    if [ "$(uname)" = "Darwin" ] ; then
+        echo $(date -j +%s);
+    else
+        echo $(date --utc +%s);
+    fi
+}
+
+##
+# Checks out onto a given branch or master
+#
+# @param string current A branch to checkout onto [optional default master]
+#
+# @return LAST_EXIT_STATUS
+#
+helper_lastBranch() {
+    [ ! $FORCE_MASTER ] && FORCE_MASTER=1;
+    current=$1;
+    [ -z $current ] && current='master';
+
+    if [ $FORCE_MASTER -eq 0 ] ; then
+        git_do checkout master;
+    else
+        git_do checkout $current;
+    fi
+}
+
+##
+# Updates git flow master / develop to the latest changes
+#
+# @return LAST_EXIT_STATUS
+#
+cmd_update() {
+    CWD=$(pwd);
+    cd $GITFLOW_DIR;
+
+    [ $1 ] && [ "$1" = '-f' ] && UPDATE=0;
+    if has_local_changes; then
+        echo "You have local changes. Please stash or commit them first";
+        exit 1;
+    fi
+
+    [ -n $ORIGIN ] && ORIGIN='origin';
+    current=$(git rev-parse --abbrev-ref HEAD);
+
+    FORCE_MASTER=1;
+    # force master branch unless gitflow.core.mode is set
+    mode=$(git config --get gitflow.core.mode);
+    if ([ $? -eq 1 ] || [ "$mode" != 'develop' ]) && [ "$current" != 'master' ]; then
+        echo "Invalid production mode - forcing master branch";
+        FORCE_MASTER=0;
+    fi
+
+    # always start on master branch
+    if [ "$current" != 'master' ] ; then
+        git_do checkout master;
+    fi
+
+    [ ! -n $UPDATE ] || UPDATE=1;
+
+    lastUpdate=$(git_do config --get gitflow.core.lastupdate);
+    if [ $? -eq 1 ] ; then
+        lastUpdate=$(now);
+        git_do config --add gitflow.core.lastupdate $lastUpdate;
+        UPDATE=0;
+    fi
+
+    timestamp=$(timestamp 7);
+    if [ $lastUpdate -lt $timestamp ] ; then
+        echo "No update necessary - skipping";
+        helper_lastBranch "$current";
+        return 0;
+    fi
+
+    if [ $lastUpdate -ge $timestamp ] || [ $UPDATE -eq 0 ]; then
+        echo "Checking for updates to GitFlow";
+        git_compare_branches master $ORIGIN/master;
+        retVal=$?;
+        if [ $retVal -eq 0 ] ; then
+            echo "No updates available";
+            UPDATE=1;
+        elif [ $retVal -eq 1 ] ; then
+            UPDATE=0;
+        fi
+        UPDATE=0;
+    fi
+
+    if [ $UPDATE -eq 0 ] ; then
+        echo "There are updates available for GitFlow";
+        echo "Do you wish to install them? > \c";
+        read inst;
+
+        git fetch origin;
+        git_do pull --rebase $ORIGIN master || die 'Could not pull from '$ORIGIN;
+
+        git_do checkout develop;
+        git_do pull --rebase $ORIGIN develop;
+        git_do merge --no-ff -m'Merging master into develop branch' master || die 'There were merge conflicts';
+
+        branches=$(git branch | grep 'feature\|release\|hotfix' | awk '{print $NF}');
+        for b in $branches; do
+            git_do checkout $b;
+            if git_remote_branch_exists $b ; then
+                git_do pull --rebase $ORIGIN $b;
+            fi
+            git_do merge --no-ff -m'Merging master into '$b master || die 'There were merge conflicts';
+            if git_remote_branch_exists $b ; then
+                git_do push $ORIGIN/$b;
+            fi
+        done
+    fi
+
+    helper_lastBranch "$current";
+    git_do config --replace gitflow.core.lastupdate $(now);
+    cd $CWD;
+}
 
 usage() {
 	echo "usage: git flow <subcommand>"
@@ -91,11 +218,18 @@ main() {
 	# sanity checks
 	SUBCOMMAND="$1"; shift
 
-	if [ ! -e "$GITFLOW_DIR/git-flow-$SUBCOMMAND" ]; then
+	if [ "$SUBCOMMAND" != 'update' ] && [ ! -e "$GITFLOW_DIR/git-flow-$SUBCOMMAND" ]; then
 		usage
 		exit 1
 	fi
 
+    if [ "$SUBCOMMAND" = "update" ] ; then
+        cmd_update '-f';
+        exit $?;
+    fi
+
+    # auto-update if not run in 7 days
+    cmd_update;
 	# run command
 	. "$GITFLOW_DIR/git-flow-$SUBCOMMAND"
 	FLAGS_PARENT="git flow $SUBCOMMAND"

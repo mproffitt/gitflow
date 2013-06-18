@@ -276,6 +276,38 @@ cmd_finish() {
 		fi
 	fi
 
+    # Merge into any active release or hotfix branches.
+    # This will force a fetch regardless of whether it has been specified or
+    # not to ensure that any release branches exist locally.
+    git_do fetch origin;
+    releaseBranches=$(git_do remote show origin | awk '{print $1;}' | grep "^release\|^hotfix");
+    if [ $? -eq 0 ] ; then
+        for releaseBranch in $releaseBranches ; do
+            if [ "$BRANCH" != "$releaseBranch" ] && ! git_is_branch_merged_into "$BRANCH" "$releaseBranch"; then
+                # checkout or update release branch and pull to ensure latest
+                git_do checkout "$releaseBranch";
+                if [ $? -ne 0 ] ; then
+                    warn "Could not checkout onto $releaseBranch";
+                    warn "PLEASE MERGE THIS BRANCH MANUALLY";
+                    continue;
+                fi
+                git_do pull origin "$releaseBranch";
+
+                # now merge hotfix back into release branch
+                git_do checkout $releaseBranch;
+                git_do merge --no-ff -m"Merging $BRANCH into $releaseBranch" "$BRANCH" \
+                    || die "There were merge conflicts whilst merging into $releaseBranch";
+
+                if flag rebase ; then
+                    git_do rebase master || die "There were merge conflicts whilst rebasing against the master branch";
+                fi
+
+#                git_do push origin "$releaseBranch" || warn "Could not push to origin/$releaseBranch";
+            fi
+        done
+        git_do checkout develop;
+    fi
+
 	# delete branch
 	if noflag keep; then
 		if [ "$BRANCH" = "$(git_current_branch)" ]; then

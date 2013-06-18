@@ -325,7 +325,12 @@ cmd_finish() {
         for releaseBranch in $releaseBranches ; do
             if [ "$BRANCH" != "$releaseBranch" ] && ! git_is_branch_merged_into "$BRANCH" "$releaseBranch"; then
                 # checkout or update release branch and pull to ensure latest
-                git_do checkout "$releaseBranch" || warn "Could not checkout onto $releaseBranch";
+                git_do checkout "$releaseBranch";
+                if [ $? -ne 0 ] ; then
+                    warn "Could not checkout onto $releaseBranch";
+                    warn "PLEASE MERGE THIS BRANCH MANUALLY";
+                    continue;
+                fi
                 git_do pull origin "$releaseBranch";
 
                 # now merge hotfix back into release branch
