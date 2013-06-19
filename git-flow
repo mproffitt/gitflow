@@ -127,7 +127,7 @@ cmd_update() {
     fi
 
     timestamp=$(timestamp 7);
-    if [ $lastUpdate -lt $timestamp ] ; then
+    if [ $lastUpdate -gt $timestamp ] ; then
         echo "No update necessary - skipping";
         helper_lastBranch "$current";
         cd $CWD;
@@ -151,6 +151,10 @@ cmd_update() {
         echo "There are updates available for GitFlow";
         echo "Do you wish to install them? > \c";
         read inst;
+        if [ "$inst" = "n" ] || [ "$isnt" = "no" ] ; then
+            cd $CWD;
+            return 0;
+        fi
 
         git fetch origin;
         git_do pull --rebase $ORIGIN master || die 'Could not pull from '$ORIGIN;
@@ -227,10 +231,11 @@ main() {
     if [ "$SUBCOMMAND" = "update" ] ; then
         cmd_update '-f';
         exit $?;
+    else
+        # auto-update if not run in 7 days
+        cmd_update;
     fi
 
-    # auto-update if not run in 7 days
-    cmd_update;
 	# run command
 	. "$GITFLOW_DIR/git-flow-$SUBCOMMAND"
 	FLAGS_PARENT="git flow $SUBCOMMAND"
