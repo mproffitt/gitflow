@@ -41,8 +41,8 @@
 #
 
 # shell output
-warn() { echo "$@" >&2; }
-die() { warn "$@"; exit 1; }
+#warn() { echo "$@" >&2; }
+#die() { warn "$@"; exit 1; }
 
 escape() {
 	echo "$1" | sed 's/\([\.\$\*]\)/\\\1/g'
@@ -81,11 +81,38 @@ noflag() { local FLAG; eval FLAG='$FLAGS_'$1; [ $FLAG -ne $FLAGS_TRUE ]; }
 #
 
 git_do() {
-  # equivalent to git, used to indicate actions that make modifications
-  if flag show_commands; then
-    echo "git $@" >&2
-  fi
-  git "$@"
+    # equivalent to git, used to indicate actions that make modifications
+    if flag show_commands; then
+        echo "git $@" >&2
+    fi
+    changeIFS;
+    out=$(git "$@" 2>&1);
+    gitReturnValue=$?;
+
+    while IFS=$'\n' read -ra output ; do
+        for ((i=0; i < ${#output[*]}; i++)) do
+            line=${output[$i]};
+            if echo $line | grep -q '^error\|^fatal' ; then
+                line=$(echo $line | cut -d\  -f2-);
+                if echo $line | grep -q 'remote ref does not exist' ; then
+                    debug $line;
+                else
+                    error $line;
+                fi
+            elif echo $line | grep -q '^hint' ; then
+                line=$(echo $line | cut -d\  -f2-);
+                debug $line 2>&1;
+            else
+                if ! echo ${_GIT_NO_INFO_COMMANDS[@]} | grep -q $1; then
+                    info $line;
+                else
+                    echo $line;
+                fi
+            fi
+        done;
+    done <<<$out
+    resetIFS;
+    return $gitReturnValue;
 }
 
 git_local_branches() { git branch --no-color | sed 's/^[* ] //'; }

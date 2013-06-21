@@ -240,16 +240,17 @@ cmd_cleanup() {
     parse_args "$@"
     expand_nameprefix_arg_or_current
 
-    echo "#############################################################################";
-    echo "#                            WARNING                                        #"
-    echo "#############################################################################";
-    echo;
-    echo "You are about to cleanup feature $BRANCH";
-    echo "Before continuing, please check that the build is completely green.";
-    echo "If you are not certain, ask someone to check for you";
-    echo;
-    echo "Is the build green (y/n)? > \c";
+    fill_n _SEP_LEN '#';
+    centre '#' 'WARNING';
+    fill_n _SEP_LEN '#';
+    echo '#';
+    echo "# You are about to cleanup feature $BRANCH";
+    echo "# Before continuing, please check that the build is completely green.";
+    echo "# If you are not certain, ask someone to check for you";
+    echo '#';
+    echo -n "# Is the build green (y/n)? > ";
     read buildsuccess;
+    fill_n _SEP_LEN '#';
 
     if [ "$buildsuccess" = "y" ] ; then
         helper_finish_cleanup;
@@ -374,6 +375,7 @@ cmd_finish() {
 
     # If no merge conflicts have been found we canpush to origin
     git_do push origin "$DEVELOP_BRANCH";
+    _PUSH_FAILED=$?;
 
 	# when no merge conflict is detected, just clean up the feature branch
 	helper_finish_notice
@@ -389,12 +391,15 @@ helper_finish_cleanup() {
 		git_do push "$ORIGIN" ":refs/heads/$BRANCH"
 	fi
 
-
+    _BRANCH_AVAILABLE=1;
 	if noflag keep; then
 		if flag force_delete; then
 			git_do branch -D "$BRANCH"
 		else
 			git_do branch -d "$BRANCH"
+            if [ $? -ne 0 ] ; then
+                _BRANCH_AVAILABLE=0;
+            fi
 		fi
         git_do push "$ORIGIN" ":$BRANCH"
 	fi
@@ -402,7 +407,7 @@ helper_finish_cleanup() {
 	echo
 	echo "Summary of actions:"
 	#echo "- Merge conflicts were resolved"		# TODO: Add this line when it's supported
-	if flag keep; then
+	if flag keep || [ $_BRANCH_AVAILABLE -eq 0 ]; then
 		echo "- Feature branch '$BRANCH' is still available"
 	else
 		echo "- Feature branch '$BRANCH' has been removed"
@@ -412,13 +417,16 @@ helper_finish_cleanup() {
 }
 
 helper_finish_notice() {
-    echo;
-    echo "Finished feature $BRANCH";
-    echo "- The feature branch '$BRANCH' was merged into '$DEVELOP_BRANCH'"
-    echo "----------------------------------------------------------------";
-    echo "    Once the build is green you can remove this feature with:";
-    echo "    \$ git-flow feature cleanup $NAME";
-    echo;
+    fill_n _SEP_LEN '*';
+    info "Finished feature $BRANCH";
+    info "- The feature branch '$BRANCH' was merged into '$DEVELOP_BRANCH'"
+    if [ $_PUSH_FAILED -ne 0 ] ; then
+        error "- Failed to push to remote server";
+    fi
+    fill_n _SEP_LEN '-';
+    info "    Once the build is green you can remove this feature with:";
+    info "    \$ git-flow feature cleanup $NAME";
+    fill_n _SEP_LEN '*';
 }
 
 

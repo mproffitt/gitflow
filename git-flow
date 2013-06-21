@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # git-flow -- A collection of Git extensions to provide high-level
 # repository operations for Vincent Driessen's branching model.
@@ -51,21 +51,10 @@ fi
 ls -l $0 | grep -q ^l && GITFLOW_DIR=$(dirname `ls -l $0 | awk '{print $NF}'`);
 export GITFLOW_DIR=$(echo "$GITFLOW_DIR" | sed -e 's,\\,/,g');
 
-timestamp() {
-    lessDays=$1;
-    _sec=86400;
-    date=$(now);
-    echo $((date - (_sec * lessDays)));
-}
+source "$GITFLOW_DIR/common/common-functions";
 
-
-now() {
-    if [ "$(uname)" = "Darwin" ] ; then
-        echo $(date -j +%s);
-    else
-        echo $(date --utc +%s);
-    fi
-}
+# load common functionality
+source "$GITFLOW_DIR/gitflow-common"
 
 ##
 # Checks out onto a given branch or master
@@ -95,21 +84,34 @@ cmd_update() {
     CWD=$(pwd);
     cd $GITFLOW_DIR;
 
+    fill_n _SEP_LEN '*';
+    info 'UPDATING GitFlow';
+
     [ $1 ] && [ "$1" = '-f' ] && UPDATE=0;
     if has_local_changes; then
-        echo "You have local changes. Please stash or commit them first";
+        error 'You have local changes to your GitFlow repository';
+        error 'Please stash or commit them first';
+        fill_n _SEP_LEN '*';
         exit 1;
     fi
 
     [ -n $ORIGIN ] && ORIGIN='origin';
-    current=$(git rev-parse --abbrev-ref HEAD);
+    current=$(git_do rev-parse --abbrev-ref HEAD);
 
-    FORCE_MASTER=1;
-    # force master branch unless gitflow.core.mode is set
-    mode=$(git config --get gitflow.core.mode);
-    if ([ $? -eq 1 ] || [ "$mode" != 'develop' ]) && [ "$current" != 'master' ]; then
-        echo "Invalid production mode - forcing master branch";
-        FORCE_MASTER=0;
+    FORCE_MASTER=1; # force master branch unless gitflow.core.mode is set
+
+    mode=$(git_do config --get gitflow.core.mode);
+    modeRetVal=$?;
+    if [ $modeRetVal -eq 2 ] ; then
+        error 'Invalid or broken .git/config - please fix and try again';
+        fill_n _SEP_LEN '*';
+        exit 1;
+    fi
+    if [ $modeRetVal -eq 1 ] || [ "$mode" != 'develop' ]; then
+        if [ "$current" != 'master' ]; then
+            debug 'Invalid production mode - forcing master branch';
+            FORCE_MASTER=0;
+        fi
     fi
 
     # always start on master branch
@@ -118,7 +120,6 @@ cmd_update() {
     fi
 
     [ ! -n $UPDATE ] || UPDATE=1;
-
     lastUpdate=$(git_do config --get gitflow.core.lastupdate);
     if [ $? -eq 1 ] ; then
         lastUpdate=$(now);
@@ -128,40 +129,41 @@ cmd_update() {
 
     timestamp=$(timestamp 7);
     if [ $lastUpdate -gt $timestamp ] ; then
-        echo "No update necessary - skipping";
+        info 'No update necessary - skipping';
         helper_lastBranch "$current";
         cd $CWD;
+        fill_n _SEP_LEN '*';
         return 0;
     fi
 
     if [ $lastUpdate -ge $timestamp ] || [ $UPDATE -eq 0 ]; then
-        echo "Checking for updates to GitFlow";
+        info 'Checking for updates to GitFlow';
+
         git_compare_branches master $ORIGIN/master;
         retVal=$?;
         if [ $retVal -eq 0 ] ; then
-            echo "No updates available";
+            info 'No updates available';
             UPDATE=1;
         elif [ $retVal -eq 1 ] ; then
             UPDATE=0;
         fi
-        UPDATE=0;
     fi
-
-    if [ $UPDATE -eq 0 ] ; then
-        echo "There are updates available for GitFlow";
-        echo "Do you wish to install them? > \c";
+    if [ $UPDATE -eq 1 ] ; then
+        info 'There are updates available for GitFlow';
+        echo -n '** Do you wish to install them? > ';
         read inst;
         if [ "$inst" = "n" ] || [ "$isnt" = "no" ] ; then
             cd $CWD;
+            fill _SEP_LEN '*';
             return 0;
         fi
 
-        git fetch origin;
-        git_do pull --rebase $ORIGIN master || die 'Could not pull from '$ORIGIN;
+        git_do fetch origin;
+        git_do pull --rebase $ORIGIN master || die '|** -- Could not pull from '$ORIGIN;
 
         git_do checkout develop;
         git_do pull --rebase $ORIGIN develop;
-        git_do merge --no-ff -m'Merging master into develop branch' master || die 'There were merge conflicts';
+        git_do merge --no-ff -m'Merging master into develop branch' master || die '|** -- There were merge conflicts';
 
         branches=$(git branch | grep 'feature\|release\|hotfix' | awk '{print $NF}');
         for b in $branches; do
@@ -169,7 +171,7 @@ cmd_update() {
             if git_remote_branch_exists $b ; then
                 git_do pull --rebase $ORIGIN $b;
             fi
-            git_do merge --no-ff -m'Merging master into '$b master || die 'There were merge conflicts';
+            git_do merge --no-ff -m'Merging master into '$b master || die '|** -- There were merge conflicts';
             if git_remote_branch_exists $b ; then
                 git_do push $ORIGIN/$b;
             fi
@@ -178,6 +180,7 @@ cmd_update() {
 
     helper_lastBranch "$current";
     git_do config --replace gitflow.core.lastupdate $(now);
+    echo $sep;
     cd $CWD;
 }
 
@@ -186,6 +189,7 @@ usage() {
 	echo
 	echo "Available subcommands are:"
 	echo "   init      Initialize a new git repo with support for the branching model."
+    echo "   update    Update GitFlow main toolset.";
 	echo "   feature   Manage your feature branches."
 	echo "   release   Manage your release branches."
 	echo "   hotfix    Manage your hotfix branches."
@@ -200,9 +204,6 @@ main() {
 		usage
 		exit 1
 	fi
-
-	# load common functionality
-	. "$GITFLOW_DIR/gitflow-common"
 
 	# This environmental variable fixes non-POSIX getopt style argument
 	# parsing, effectively breaking git-flow subcommand parsing on several

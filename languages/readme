@@ -1,0 +1,8 @@
+This folder is for internationalisation language support
+
+To add a new language create a po file named as:
+
+    'language.po': e.g 'en_GB.po'
+
+which contains : separated replacement srings for the words / messages you wish to translate.
+
