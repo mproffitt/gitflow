@@ -131,6 +131,7 @@ parse_args() {
 	# read arguments into global variables
 	VERSION=$1
 	BRANCH=$PREFIX$VERSION
+    _LOG_FILE="${_LOG_FILE}-${VERSION}.log";
 }
 
 require_version_arg() {

@@ -58,9 +58,16 @@ log() {
 # a problem has occurred.
 #
 die() {
+    local nolog=1;
+    if [ "$1" = '--no-log' ] ; then
+        nolog=0;
+        shift;
+    fi
     message=$(__translate "$@");
-    log "[FATAL] $message";
-    pad_n _LINE_LEN '** '"$RED[$(__translate FATAL)]$RESET $message" ' ' '**' 1>&2;
+    [ $nolog -eq 1 ] && log "[FATAL] $message";
+    pad_n _LINE_LEN '** '"$RED[$(__translate FATAL | tr '[:lower:]' '[:upper:]')]$RESET $message" ' ' '**' 1>&2;
+    debug "Log file written to $_LOG_FILE";
+    fill_n _SEP_LEN '**';
     exit 1;
 }
 
@@ -72,9 +79,14 @@ die() {
 # @return void
 #
 info() {
+    local nolog=1;
+    if [ "$1" = '--no-log' ] ; then
+        nolog=0;
+        shift;
+    fi
     message=$(__translate "$@");
-    log "[INFO] $message";
-    pad_n _LINE_LEN '** '"$WHITE[$(__translate INFO)]$RESET $message" ' ' '**' 1>&2;
+    [ $nolog -eq 1 ] && log "[INFO] $message";
+    pad_n _LINE_LEN '** '"$WHITE[$(__translate INFO | tr '[:lower:]' '[:upper:]')]$RESET $message" ' ' '**' 1>&2;
 }
 
 ##
@@ -85,9 +97,14 @@ info() {
 # @return void
 #
 debug() {
+    local nolog=1;
+    if [ "$1" = '--no-log' ] ; then
+        nolog=0;
+        shift;
+    fi
     message=$(__translate "$@");
-    log "[DEBUG] $message";
-    pad_n _LINE_LEN '** '"$CYAN[$(__translate DEBUG)]$RESET $message" ' ' '**' 1>&2;
+    [ $nolog -eq 1 ] && log "[DEBUG] $message";
+    pad_n _LINE_LEN '** '"$CYAN[$(__translate DEBUG | tr '[:lower:]' '[:upper:]')]$RESET $message" ' ' '**' 1>&2;
 }
 
 ##
@@ -98,9 +115,14 @@ debug() {
 # @return void
 #
 warn() {
+    local nolog=1;
+    if [ "$1" = '--no-log' ] ; then
+        nolog=0;
+        shift;
+    fi
     message=$(__translate "$@");
-    log "[WARNING] $message";
-    pad_n _LINE_LEN '** '"$(echo $YELLOW[$(__translate WARNING)]$RESET $message)" ' ' '**' 1>&2;
+    [ $nolog -eq 1 ] && log "[WARNING] $message";
+    pad_n _LINE_LEN '** '"$(echo $YELLOW[$(__translate WARNING | tr '[:lower:]' '[:upper:]')]$RESET $message)" ' ' '**' 1>&2;
     __talk "$(__translate Warning) - '$message'";
 }
 
@@ -112,9 +134,14 @@ warn() {
 # @return void
 #
 error() {
+    local nolog=1;
+    if [ "$1" = '--no-log' ] ; then
+        nolog=0;
+        shift;
+    fi
     message=$(__translate "$@");
-    log "[ERROR] $message";
-    pad_n _LINE_LEN '** '"$(echo $RED[$(__translate ERROR)] ${message}$RESET)" ' ' '**' 1>&2;
+    [ $nolog -eq 1 ] && log "[ERROR] $message";
+    pad_n _LINE_LEN '** '"$(echo $RED[$(__translate ERROR | tr '[:lower:]' '[:upper:]')] ${message}$RESET)" ' ' '**' 1>&2;
     __talk $(__translate "Fail! An Error has occurred. Please check the output");
     __talk $(__translate "An Error has occurred. Error! Error!");
 }

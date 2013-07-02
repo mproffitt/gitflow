@@ -254,11 +254,14 @@ main() {
 		exit 1
 	fi
 
-	# run the specified action
-  if [ $SUBACTION != "help" ] && [ $SUBCOMMAND != "init" ] ; then
-    init
-  fi
-  cmd_$SUBACTION "$@"
+    # set _LOG_FILE value
+    _LOG_FILE="${GITFLOW_DIR}/logs/${SUBCOMMAND}-${SUBACTION}";
+
+    # run the specified action
+    if [ $SUBACTION != "help" ] && [ $SUBCOMMAND != "init" ] ; then
+        init
+    fi
+    cmd_$SUBACTION "$@"
 }
 
 main "$@"
