@@ -11,6 +11,7 @@ _GIT_NO_INFO_COMMANDS=(
     'config'
     'rev-parse'
     'branch'
+    'remote show'
 );
 ##
 # Puts the script into TEST_MODE
