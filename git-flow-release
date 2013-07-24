@@ -125,6 +125,7 @@ parse_args() {
 	# read arguments into global variables
 	VERSION=$1
 	BRANCH=$PREFIX$VERSION
+    _LOG_FILE="${_LOG_FILE}-${VERSION}.log";
 }
 
 require_version_arg() {
@@ -248,7 +249,7 @@ cmd_finish() {
 			local opts="-a"
 			flag sign && opts="$opts -s"
 			[ "$FLAGS_signingkey" != "" ] && opts="$opts -u '$FLAGS_signingkey'"
-			[ "$FLAGS_message" != "" ] && opts="$opts -m '$FLAGS_message'"
+			[ "$FLAGS_message" != "" ] && opts="$opts -m '$FLAGS_message'" || opts="$opts -m 'Release for $BRANCH'";
 			[ "$FLAGS_messagefile" != "" ] && opts="$opts -F '$FLAGS_messagefile'"
 			eval git_do tag $opts "$tagname" "$BRANCH" || \
 			die "Tagging failed. Please run finish again to retry."
@@ -273,6 +274,17 @@ cmd_finish() {
 				die "There were merge conflicts."
 				# TODO: What do we do now?
 			git_do commit
+		fi
+	fi
+
+    if flag push; then
+		git_do push "$ORIGIN" "$DEVELOP_BRANCH" || \
+			die "Could not push to $DEVELOP_BRANCH from $ORIGIN."
+		git_do push "$ORIGIN" "$MASTER_BRANCH" || \
+			die "Could not push to $MASTER_BRANCH from $ORIGIN."
+		if noflag notag; then
+			git_do push --tags "$ORIGIN" || \
+			  die "Could not push tags to $ORIGIN."
 		fi
 	fi
 
@@ -302,7 +314,7 @@ cmd_finish() {
                     git_do rebase master || die "There were merge conflicts whilst rebasing against the master branch";
                 fi
 
-#                git_do push origin "$releaseBranch" || warn "Could not push to origin/$releaseBranch";
+                git_do push origin "$releaseBranch" || warn "Could not push to origin/$releaseBranch";
             fi
         done
         git_do checkout develop;
@@ -314,17 +326,6 @@ cmd_finish() {
 			git_do checkout "$MASTER_BRANCH"
 		fi
 		git_do branch -d "$BRANCH"
-	fi
-
-	if flag push; then
-		git_do push "$ORIGIN" "$DEVELOP_BRANCH" || \
-			die "Could not push to $DEVELOP_BRANCH from $ORIGIN."
-		git_do push "$ORIGIN" "$MASTER_BRANCH" || \
-			die "Could not push to $MASTER_BRANCH from $ORIGIN."
-		if noflag notag; then
-			git_do push --tags "$ORIGIN" || \
-			  die "Could not push tags to $ORIGIN."
-		fi
 		git_do push "$ORIGIN" :"$BRANCH" || \
 			die "Could not delete the remote $BRANCH in $ORIGIN."
 	fi

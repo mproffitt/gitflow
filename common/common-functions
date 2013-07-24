@@ -1,0 +1,383 @@
+##
+# A log file for writing to.
+#
+# The name of this log file should be changed to 'GitFlow-OUTPUT-DIR/logs/<ModuleName>/SUBCOMMAND.log'
+#
+# e.g. GitFlow/logs/LegacyCodebase/feature-mp-JIRA-1234-test-feature.log
+#
+_LOG_FILE='/tmp/GitFlow.log';
+
+_GIT_NO_INFO_COMMANDS=(
+    'config'
+    'rev-parse'
+    'branch'
+);
+##
+# Puts the script into TEST_MODE
+#
+# If true, no commands will be executed
+#
+_TEST_MODE=1;
+
+#
+##
+# OUTPUT COLOURS
+RED=$(echo $'\033[31m');
+GREEN=$(echo $'\033[32m');
+YELLOW=$(echo $'\033[33m');
+BLUE=$(echo $'\033[34m');
+MAGENTA=$(echo $'\033[35m');
+CYAN=$(echo $'\033[36m');
+WHITE=$(echo $'\033[37m');
+
+RESET=$(echo $'\033[00m');
+
+_SEP_LEN=120;
+_COL_LEN=8;
+_LINE_LEN=$((_SEP_LEN + _COL_LEN));
+
+##
+# Writes all messages to the current log.
+#
+# @param $@ The message to log
+#
+# @return LAST_EXIT_STATUS
+#
+log() {
+    echo $@ 2>&1 >> $_LOG_FILE;
+}
+
+##
+# Kill the script if a problem occurs
+#
+# @param string message - The reason the script died
+#
+# @return 0
+#
+# This function exits with an exist status of 1 if
+# a problem has occurred.
+#
+die() {
+    local nolog=1;
+    if [ "$1" = '--no-log' ] ; then
+        nolog=0;
+        shift;
+    fi
+    message=$(__translate "$@");
+    [ $nolog -eq 1 ] && log "[FATAL] $message";
+    pad_n _LINE_LEN '** '"$RED[$(__translate FATAL | tr '[:lower:]' '[:upper:]')]$RESET $message" ' ' '**' 1>&2;
+    debug "Log file written to $_LOG_FILE";
+    fill_n _SEP_LEN '**';
+    exit 1;
+}
+
+##
+# Print informational messages
+#
+# @param string
+#
+# @return void
+#
+info() {
+    local nolog=1;
+    if [ "$1" = '--no-log' ] ; then
+        nolog=0;
+        shift;
+    fi
+    message=$(__translate "$@");
+    [ $nolog -eq 1 ] && log "[INFO] $message";
+    pad_n _LINE_LEN '** '"$WHITE[$(__translate INFO | tr '[:lower:]' '[:upper:]')]$RESET $message" ' ' '**' 1>&2;
+}
+
+##
+# Print debug messages
+#
+# @param string
+#
+# @return void
+#
+debug() {
+    local nolog=1;
+    if [ "$1" = '--no-log' ] ; then
+        nolog=0;
+        shift;
+    fi
+    message=$(__translate "$@");
+    [ $nolog -eq 1 ] && log "[DEBUG] $message";
+    pad_n _LINE_LEN '** '"$CYAN[$(__translate DEBUG | tr '[:lower:]' '[:upper:]')]$RESET $message" ' ' '**' 1>&2;
+}
+
+##
+# Print warning messages
+#
+# @param string
+#
+# @return void
+#
+warn() {
+    local nolog=1;
+    if [ "$1" = '--no-log' ] ; then
+        nolog=0;
+        shift;
+    fi
+    message=$(__translate "$@");
+    [ $nolog -eq 1 ] && log "[WARNING] $message";
+    pad_n _LINE_LEN '** '"$(echo $YELLOW[$(__translate WARNING | tr '[:lower:]' '[:upper:]')]$RESET $message)" ' ' '**' 1>&2;
+    __talk "$(__translate Warning) - '$message'";
+}
+
+##
+# Prints error messages
+#
+# @param string
+#
+# @return void
+#
+error() {
+    local nolog=1;
+    if [ "$1" = '--no-log' ] ; then
+        nolog=0;
+        shift;
+    fi
+    message=$(__translate "$@");
+    [ $nolog -eq 1 ] && log "[ERROR] $message";
+    pad_n _LINE_LEN '** '"$(echo $RED[$(__translate ERROR | tr '[:lower:]' '[:upper:]')] ${message}$RESET)" ' ' '**' 1>&2;
+    __talk $(__translate "Fail! An Error has occurred. Please check the output");
+    __talk $(__translate "An Error has occurred. Error! Error!");
+}
+
+##
+# executes the given command
+#
+# @param string
+#
+# @return void
+#
+exec_command() {
+    eval "$@";
+}
+
+##
+# echos a command to screen instead of executing it
+#
+# @param $@ The command string to echo
+#
+# @return LAST_EXIT_STATUS
+#
+echo_command() {
+    echo "$@";
+}
+
+##
+# Checks to see if we are in test mode and if so echos commands rather than
+#   executing them. Otherwise the commands are executed
+#
+# @param string $command The command string to execute / echo
+#
+# @return LAST_EXIT_STATUS
+#
+exec() {
+    info "Executing command '$@'";
+    if $_TEST_MODE ; then
+        echo_command $@;
+    else
+        exec_command $@;
+    fi
+}
+
+##
+# Gets a timestamp for n days ago
+#
+# @param int lessDays The number of days in the past to read
+#
+# @return LAST_EXIT_STATUS
+#
+timestamp() {
+    lessDays=$1;
+    _sec=86400;
+    date=$(now);
+    echo $((date - (_sec * lessDays)));
+}
+
+##
+# Gets a timestamp for now
+#
+now() {
+    if [ "$(uname)" = "Darwin" ] ; then
+        echo $(date -j +%s);
+    else
+        echo $(date --utc +%s);
+    fi
+}
+
+##
+# Changes the input field separator to a newline
+#
+changeIFS() {
+    OLDIFS=$IFS;
+    IFS=$(echo -en "\n");
+}
+
+##
+# Resets IFS to a space
+#
+resetIFS() {
+    IFS=$OLDIFS;
+}
+
+##
+# Fills a line with n characters
+#
+# @param int  len       The length to fill
+# @param char character The character to fill with
+#
+# @return LAST_EXIT_STATUS
+#
+function fill ()
+{
+    FILL="${2:- }"
+    for ((c=0; c<=$1; c+=${#FILL}))
+    do
+        echo -n "${FILL:0:$1-$c}"
+    done
+}
+
+##
+# Fills a line and appends a new line at the end
+#
+# @param int  len       The length of line to fill
+# @param char character The character to fill with
+#
+# @return LAST_EXIT_STATUS
+function fill_n() {
+    fill "$1" "$2" && echo;
+}
+
+##
+# Pads a string out to n places with a given character
+#
+# @param int    len       The length to pad to
+# @param string str       The string to pad
+# @param char   character The character to pad with
+#
+# @return LAST_EXIT_STATUS
+#
+function pad ()
+{
+    BACK=$(fill $1 "$3")
+    let PAD=$1-${#2}
+    if [ $PAD -lt 1 ]
+    then
+        echo -n ${2:0:$1-1}
+    else
+        echo -n "$2${BACK:${#2}}"
+    fi
+}
+
+##
+# Pads a string to n places and appends a new line
+#
+# This function will optionally add extra chars on the end as a border
+#
+# @param int len          The length of line to pad
+# @param string str       The string to pad
+# @param char   character The character to pad with
+# @param char*  border    An optional multi-char paramater to use as a border
+#
+# @return LAST_EXIT_STATUS
+#
+function pad_n ()
+{
+    pad "$1" "$2" "$3" && echo "$4";
+}
+
+##
+# Centres a string on a line
+#
+# @param char   border  An optional character to use for left border - leave blank for none.
+# @param string message The message to center
+#
+# @return LAST_EXIT_STATUS
+#
+# This function uses the value of _SEP_LEN to determine the full length of the line on which to centre
+# the message.
+#
+function centre()
+{
+    border="$1";
+    shift;
+    message="$@";
+    pad $(( ((_SEP_LEN/2) - (${#message}/2)) )) "$border" ' ' &&
+        echo -n "$message" &&
+        fill $(( ((_SEP_LEN/2) - (${#message}/2) - (${#border} * 2)) )) ' ' &&
+        echo "$border";
+}
+
+##
+# Configures voice if it's available
+#
+# @return LAST_EXIT_STATUS
+#
+function voiceConfig() {
+    which say &>/dev/null;
+    if [ $? -eq 0 ] ; then
+        git config --global --get gitflow.core.say &>/dev/null;
+        if [ $? -ne 0 ] ; then
+            git config --global --add gitflow.core.say 1;
+        fi
+
+        git config --global --get gitflow.core.voice &>/dev/null;
+        if [ $? -ne 0 ] ; then
+            git config --global --add gitflow.core.voice 'Trinoids';
+        fi
+    fi
+}
+
+##
+# This method uses the say method (if available) to emphasise errors
+#
+# @param string message The message to speak
+#
+# @return LAST_EXIT_STATUS
+#
+function __talk ()
+{
+    message=$(__translate "$@");
+    voiceConfig;
+    say=$(which say);
+    if [ $? -eq 0 ] && [ $(git config --global --get gitflow.core.say) -eq 0 ] ; then
+        say -v $(git config --global --get gitflow.core.voice) "$@";
+    fi
+}
+
+
+function __translate()
+{
+    message=$@;
+    language=$(git config --global --get gitflow.core.language);
+    if [ $? -eq 0 ] && [ "$language" != 'plain' ] ; then
+        languageFile="$GITFLOW_DIR/languages/$language.po";
+        if [ -f $languageFile ] ; then
+            m=$(grep -i "^$message" $languageFile);
+            if [ $? -eq 0 ] ; then
+                m=$(echo $m | cut -d: -f2-);
+            else
+                IFS=' ' read -ra words <<< "$message";
+                mess="";
+                for word in ${words[@]} ; do
+                    m=$(grep -i "^$word" $languageFile);
+                    if [ $? -eq 0 ] ; then
+                        m=$(echo $m | cut -d: -f2-);
+                        mess="$mess$m ";
+                    else
+                        mess="$mess$word ";
+                    fi
+                done
+                m="$mess";
+            fi
+            message="$m";
+        fi
+    fi
+    echo "$message";
+}
+

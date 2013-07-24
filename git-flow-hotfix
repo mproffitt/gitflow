@@ -131,6 +131,7 @@ parse_args() {
 	# read arguments into global variables
 	VERSION=$1
 	BRANCH=$PREFIX$VERSION
+    _LOG_FILE="${_LOG_FILE}-${VERSION}.log";
 }
 
 require_version_arg() {
@@ -294,7 +295,7 @@ cmd_finish() {
 			local opts="-a"
 			flag sign && opts="$opts -s"
 			[ "$FLAGS_signingkey" != "" ] && opts="$opts -u '$FLAGS_signingkey'"
-			[ "$FLAGS_message" != "" ] && opts="$opts -m '$FLAGS_message'"
+			[ "$FLAGS_message" != "" ] && opts="$opts -m '$FLAGS_message'" || opts="$opts -m 'Release of hotfix $BRANCH'";
 			[ "$FLAGS_messagefile" != "" ] && opts="$opts -F '$FLAGS_messagefile'"
 			eval git_do tag $opts "$VERSION_PREFIX$VERSION" "$BRANCH" || \
 			die "Tagging failed. Please run finish again to retry."
@@ -315,6 +316,16 @@ cmd_finish() {
 		  # TODO: What do we do now?
 	fi
 
+    if flag push; then
+		git_do push "$ORIGIN" "$DEVELOP_BRANCH" || \
+			die "Could not push to $DEVELOP_BRANCH from $ORIGIN."
+		git_do push "$ORIGIN" "$MASTER_BRANCH" || \
+			die "Could not push to $MASTER_BRANCH from $ORIGIN."
+		if noflag notag; then
+			git_do push --tags "$ORIGIN" || \
+				die "Could not push tags to $ORIGIN."
+		fi
+	fi
 
     # Merge into any active release or hotfix branches.
     # This will force a fetch regardless of whether it has been specified or
@@ -359,17 +370,6 @@ cmd_finish() {
             git_do push origin :"$BRANCH";
             remoteDeleteSuccess=$?;
         fi
-	fi
-
-	if flag push; then
-		git_do push "$ORIGIN" "$DEVELOP_BRANCH" || \
-			die "Could not push to $DEVELOP_BRANCH from $ORIGIN."
-		git_do push "$ORIGIN" "$MASTER_BRANCH" || \
-			die "Could not push to $MASTER_BRANCH from $ORIGIN."
-		if noflag notag; then
-			git_do push --tags "$ORIGIN" || \
-				die "Could not push tags to $ORIGIN."
-		fi
 	fi
 
 	echo
