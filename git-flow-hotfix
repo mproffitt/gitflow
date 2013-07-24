@@ -316,6 +316,16 @@ cmd_finish() {
 		  # TODO: What do we do now?
 	fi
 
+    if flag push; then
+		git_do push "$ORIGIN" "$DEVELOP_BRANCH" || \
+			die "Could not push to $DEVELOP_BRANCH from $ORIGIN."
+		git_do push "$ORIGIN" "$MASTER_BRANCH" || \
+			die "Could not push to $MASTER_BRANCH from $ORIGIN."
+		if noflag notag; then
+			git_do push --tags "$ORIGIN" || \
+				die "Could not push tags to $ORIGIN."
+		fi
+	fi
 
     # Merge into any active release or hotfix branches.
     # This will force a fetch regardless of whether it has been specified or
@@ -360,17 +370,6 @@ cmd_finish() {
             git_do push origin :"$BRANCH";
             remoteDeleteSuccess=$?;
         fi
-	fi
-
-	if flag push; then
-		git_do push "$ORIGIN" "$DEVELOP_BRANCH" || \
-			die "Could not push to $DEVELOP_BRANCH from $ORIGIN."
-		git_do push "$ORIGIN" "$MASTER_BRANCH" || \
-			die "Could not push to $MASTER_BRANCH from $ORIGIN."
-		if noflag notag; then
-			git_do push --tags "$ORIGIN" || \
-				die "Could not push tags to $ORIGIN."
-		fi
 	fi
 
 	echo

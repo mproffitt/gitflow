@@ -277,6 +277,17 @@ cmd_finish() {
 		fi
 	fi
 
+    if flag push; then
+		git_do push "$ORIGIN" "$DEVELOP_BRANCH" || \
+			die "Could not push to $DEVELOP_BRANCH from $ORIGIN."
+		git_do push "$ORIGIN" "$MASTER_BRANCH" || \
+			die "Could not push to $MASTER_BRANCH from $ORIGIN."
+		if noflag notag; then
+			git_do push --tags "$ORIGIN" || \
+			  die "Could not push tags to $ORIGIN."
+		fi
+	fi
+
     # Merge into any active release or hotfix branches.
     # This will force a fetch regardless of whether it has been specified or
     # not to ensure that any release branches exist locally.
@@ -303,7 +314,7 @@ cmd_finish() {
                     git_do rebase master || die "There were merge conflicts whilst rebasing against the master branch";
                 fi
 
-#                git_do push origin "$releaseBranch" || warn "Could not push to origin/$releaseBranch";
+                git_do push origin "$releaseBranch" || warn "Could not push to origin/$releaseBranch";
             fi
         done
         git_do checkout develop;
@@ -315,17 +326,6 @@ cmd_finish() {
 			git_do checkout "$MASTER_BRANCH"
 		fi
 		git_do branch -d "$BRANCH"
-	fi
-
-	if flag push; then
-		git_do push "$ORIGIN" "$DEVELOP_BRANCH" || \
-			die "Could not push to $DEVELOP_BRANCH from $ORIGIN."
-		git_do push "$ORIGIN" "$MASTER_BRANCH" || \
-			die "Could not push to $MASTER_BRANCH from $ORIGIN."
-		if noflag notag; then
-			git_do push --tags "$ORIGIN" || \
-			  die "Could not push tags to $ORIGIN."
-		fi
 		git_do push "$ORIGIN" :"$BRANCH" || \
 			die "Could not delete the remote $BRANCH in $ORIGIN."
 	fi
