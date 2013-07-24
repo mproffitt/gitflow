@@ -295,7 +295,7 @@ cmd_finish() {
 			local opts="-a"
 			flag sign && opts="$opts -s"
 			[ "$FLAGS_signingkey" != "" ] && opts="$opts -u '$FLAGS_signingkey'"
-			[ "$FLAGS_message" != "" ] && opts="$opts -m '$FLAGS_message'"
+			[ "$FLAGS_message" != "" ] && opts="$opts -m '$FLAGS_message'" || opts="$opts -m 'Release of hotfix $BRANCH'";
 			[ "$FLAGS_messagefile" != "" ] && opts="$opts -F '$FLAGS_messagefile'"
 			eval git_do tag $opts "$VERSION_PREFIX$VERSION" "$BRANCH" || \
 			die "Tagging failed. Please run finish again to retry."

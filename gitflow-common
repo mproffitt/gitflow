@@ -85,6 +85,12 @@ git_do() {
     if flag show_commands; then
         echo "git $@" >&2
     fi
+
+    if [ "$1" = 'tag' ] ; then
+        git "$@";
+        return $?;
+    fi
+
     changeIFS;
     out=$(git "$@" 2>&1);
     gitReturnValue=$?;
