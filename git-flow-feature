@@ -62,9 +62,13 @@ cmd_default() {
 }
 
 cmd_list() {
-	DEFINE_boolean verbose false 'verbose (more) output' v
+    if [ -z $FLAGS_verbose ] ; then
+	    DEFINE_boolean verbose false 'verbose (more) output' v
+    fi
 	parse_args "$@"
 
+    fill_n _SEP_LEN '**'
+    info "Current active feature branches";
 	local feature_branches
 	local current_branch
 	local short_names
@@ -91,15 +95,19 @@ cmd_list() {
 	width=$(($width+3))
 
 	local branch
+    local listBranches=();
+    local branchNumber=1;
 	for branch in $short_names; do
 		local fullname=$PREFIX$branch
 		local base=$(git merge-base "$fullname" "$DEVELOP_BRANCH")
 		local develop_sha=$(git rev-parse "$DEVELOP_BRANCH")
-		local branch_sha=$(git rev-parse "$fullname")
+		local branch_sha=$(git rev-parse "$fullname");
+
+        listBranches=("${listBranches[@]}" $branch);
 		if [ "$fullname" = "$current_branch" ]; then
-			printf "* "
+			printf "    $branchNumber   * "
 		else
-			printf "  "
+			printf "    $branchNumber     "
 		fi
 		if flag verbose; then
 			printf "%-${width}s" "$branch"
@@ -116,7 +124,34 @@ cmd_list() {
 			printf "%s" "$branch"
 		fi
 		echo
+        branchNumber=$(($branchNumber + 1));
 	done
+
+    answer=$(repeatQuestion "Please select an option:" \
+        "1-$(($branchNumber-1)): The branch to checkout on to | \
+         q: quit | \
+         s: start a new branch | \
+         l: list branches"
+    );
+    case $answer in
+        'q')
+            die "Terminated by user";
+        ;;
+        's')
+            answer=$(query "Please enter the branch name > ");
+            git flow feature start $answer;
+            return $?;
+        ;;
+        [0-9]*)
+            branch=${listBranches[$(($answer - 1))]};
+            info "Switching to branch $branch";
+            git flow feature checkout $branch;
+            return $?;
+        ;;
+        'l')
+            cmd_list;
+        ;;
+    esac
 }
 
 cmd_help() {
@@ -423,13 +458,13 @@ helper_finish_cleanup() {
 }
 
 helper_finish_notice() {
-    fill_n _SEP_LEN '*';
+    fill_n _SEP_LEN '**';
     info "Finished feature $BRANCH";
     info "- The feature branch '$BRANCH' was merged into '$DEVELOP_BRANCH'"
     if [ $_PUSH_FAILED -ne 0 ] ; then
         error "- Failed to push to remote server";
     fi
-    fill_n _SEP_LEN '-';
+    fill_n _SEP_LEN '**';
     info "    Once the build is green you can remove this feature with:";
     info "    \$ git-flow feature cleanup $NAME";
     fill_n _SEP_LEN '*';

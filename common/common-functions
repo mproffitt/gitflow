@@ -66,7 +66,7 @@ die() {
     fi
     message=$(__translate "$@");
     [ $nolog -eq 1 ] && log "[FATAL] $message";
-    pad_n _LINE_LEN '** '"$RED[$(__translate FATAL | tr '[:lower:]' '[:upper:]')]$RESET $message" ' ' '**' 1>&2;
+    pad_n _LINE_LEN "$RED[$(__translate FATAL | tr '[:lower:]' '[:upper:]')]$RESET $message" ' ' '' 1>&2;
     debug "Log file written to $_LOG_FILE";
     fill_n _SEP_LEN '**';
     exit 1;
@@ -87,7 +87,7 @@ info() {
     fi
     message=$(__translate "$@");
     [ $nolog -eq 1 ] && log "[INFO] $message";
-    pad_n _LINE_LEN '** '"$WHITE[$(__translate INFO | tr '[:lower:]' '[:upper:]')]$RESET $message" ' ' '**' 1>&2;
+    pad_n _LINE_LEN "$WHITE[$(__translate INFO | tr '[:lower:]' '[:upper:]')]$RESET $message" ' ' '' 1>&2;
 }
 
 ##
@@ -105,7 +105,7 @@ debug() {
     fi
     message=$(__translate "$@");
     [ $nolog -eq 1 ] && log "[DEBUG] $message";
-    pad_n _LINE_LEN '** '"$CYAN[$(__translate DEBUG | tr '[:lower:]' '[:upper:]')]$RESET $message" ' ' '**' 1>&2;
+    pad_n _LINE_LEN "$CYAN[$(__translate DEBUG | tr '[:lower:]' '[:upper:]')]$RESET $message" ' ' '' 1>&2;
 }
 
 ##
@@ -123,7 +123,7 @@ warn() {
     fi
     message=$(__translate "$@");
     [ $nolog -eq 1 ] && log "[WARNING] $message";
-    pad_n _LINE_LEN '** '"$(echo $YELLOW[$(__translate WARNING | tr '[:lower:]' '[:upper:]')]$RESET $message)" ' ' '**' 1>&2;
+    pad_n _LINE_LEN "$(echo $YELLOW[$(__translate WARNING | tr '[:lower:]' '[:upper:]')]$RESET $message)" ' ' '' 1>&2;
     __talk "$(__translate Warning) - '$message'";
 }
 
@@ -142,10 +142,77 @@ error() {
     fi
     message=$(__translate "$@");
     [ $nolog -eq 1 ] && log "[ERROR] $message";
-    pad_n _LINE_LEN '** '"$(echo $RED[$(__translate ERROR | tr '[:lower:]' '[:upper:]')] ${message}$RESET)" ' ' '**' 1>&2;
+    pad_n _LINE_LEN "$(echo $RED[$(__translate ERROR | tr '[:lower:]' '[:upper:]')] ${message}$RESET)" ' ' '' 1>&2;
     __talk $(__translate "Fail! An Error has occurred. Please check the output");
     __talk $(__translate "An Error has occurred. Error! Error!");
 }
+
+##
+# Read answer from user
+#
+# @param string Question
+#
+query()
+{
+    local nolog=1;
+    if [ "$1" = '--no-log' ] ; then
+        nolog=0;
+        shift;
+    fi
+
+    local message=$(__translate "$1");
+    shift;
+    [ $nolog -eq 1 ] && log "[INFO] $message";
+    if [ ${#1} -gt 0 ] ; then
+        echo "$WHITE[$(__translate INFO | tr '[:lower:]' '[:upper:]')]$RESET $message" ' ' '' 1>&2;
+        IFS='|' read -a opt <<< "$1";
+        for ((i = 0; $i < ${#opt[@]}; i++)); do
+            local option="$(echo ${opt[$i]} | cut -d: -f1)";
+            local help="$(echo ${opt[$i]} | cut -d: -f2)";
+            pad 12 "    - $option" ' ' 1>&2;
+            echo ": $help" 1>&2;
+        done;
+    else
+        echo -n "$WHITE[$(__translate INFO | tr '[:lower:]' '[:upper:]')]$RESET $message" ' ' '' 1>&2;
+        read answer;
+        echo "$answer";
+    fi
+}
+
+repeatQuestion()
+{
+    message="$1";
+    options="$2";
+
+    shortopts='';
+
+    IFS='|' read -a opt <<< "$options";
+    for ((i = 0; $i < ${#opt[@]}; i++)); do
+        local option="$(echo ${opt[$i]} | cut -d: -f1)";
+        if echo "$option" | grep -q '[0-9]\+\-[0-9]\+' ; then
+            for ((j=$(echo $option | cut -d- -f1); $j <=$(echo $option | cut -d- -f2); j++)); do
+                shortopts="$shortopts,$j";
+            done
+        else
+            shortopts="$shortopts,$option";
+        fi
+    done;
+    shortopts=$(echo $shortopts | sed 's/,//');
+
+    query "$message" "$options";
+    echo -n "$CYAN[ANSWER] > $RESET" 1>&2;
+    read answer;
+    if [ -n "$answer" ] ; then
+        if echo "$shortopts" | grep -q "$answer" ; then
+            echo "$answer"
+            return 0;
+        else
+            warn "Invalid option selected. No such option $answer";
+        fi
+    fi
+    repeatQuestion "$1" "$2"
+}
+
 
 ##
 # executes the given command

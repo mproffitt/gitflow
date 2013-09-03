@@ -64,13 +64,12 @@ source "$GITFLOW_DIR/gitflow-common"
 # @return LAST_EXIT_STATUS
 #
 helper_lastBranch() {
-    [ ! $FORCE_MASTER ] && FORCE_MASTER=1;
     current=$1;
-    [ -z $current ] && current='master';
+    if [ $FORCE_MASTER -eq 0 ] || [ -z $current ] ; then
+        current='master'
+    fi
 
-    if [ $FORCE_MASTER -eq 0 ] ; then
-        git_do checkout master;
-    else
+    if [ "$(git rev-parse --abbrev-ref HEAD)" != "$current" ] ; then
         git_do checkout $current;
     fi
 }
@@ -81,16 +80,36 @@ helper_lastBranch() {
 # @return LAST_EXIT_STATUS
 #
 cmd_update() {
-    CWD=$(pwd);
-    cd $GITFLOW_DIR;
+    DEFINE_boolean force false "Force update of git flow" f;
+    FLAGS "$@" || exit $?;
+    eval set -- "${FLAGS_ARGV}";
 
+    CWD=$(pwd);
+    FORCE_MASTER=1; # force master branch unless gitflow.core.mode is set
+    cd $GITFLOW_DIR;
+    [ ! -n $UPDATE ] || UPDATE=1;
+
+    [ -n $ORIGIN ] && ORIGIN='origin';
+    current=$(git_do rev-parse --abbrev-ref HEAD);
+    lastUpdate=$(git_do config --get gitflow.core.lastupdate);
     mode=$(git_do config --get gitflow.core.mode);
     modeRetVal=$?;
-    if [ $modeRetVal -eq 2 ] ; then
-        error 'Invalid or broken .git/config - please fix and try again';
-        fill_n _SEP_LEN '*';
-        exit 1;
+
+    if [ $? -eq 1 ] ; then
+        lastUpdate=$(now);
+        git_do config --add gitflow.core.lastupdate $lastUpdate;
+        UPDATE=0;
     fi
+
+    info 'Checking for updates to GitFlow';
+
+    timestamp=$(timestamp 7);
+    if noflag force && [ $lastUpdate -ge $timestamp ] && [ $UPDATE -ne 0 ]; then
+        info "No update required (updated within last 7 days)";
+        cd $CWD;
+        return 0;
+    fi
+
     if [ $modeRetVal -eq 1 ] || [ "$mode" != 'develop' ]; then
         if [ "$mode" = 'skipupdate' ] ; then
             info "Skip update mode enabled - skipping update check";
@@ -100,48 +119,31 @@ cmd_update() {
             debug 'Invalid production mode - forcing master branch';
             FORCE_MASTER=0;
         fi
-    fi
-
-    fill_n _SEP_LEN '*';
-    info 'UPDATING GitFlow';
-
-    [ $1 ] && [ "$1" = '-f' ] && UPDATE=0;
-    if has_local_changes; then
-        error 'You have local changes to your GitFlow repository';
-        error 'Please stash or commit them first';
+    elif [ $modeRetVal -eq 2 ] ; then
+        error 'Invalid or broken .git/config - please fix and try again';
         fill_n _SEP_LEN '*';
         exit 1;
     fi
 
-    [ -n $ORIGIN ] && ORIGIN='origin';
-    current=$(git_do rev-parse --abbrev-ref HEAD);
+    if flag force || [ $lastUpdate -lt $timestamp ] || [ $UPDATE -eq 0 ]; then
+        if [ $modeRetVal -eq 2 ] ; then
+            error 'Invalid or broken .git/config - please fix and try again';
+            fill_n _SEP_LEN '*';
+            exit 1;
+        fi
 
-    FORCE_MASTER=1; # force master branch unless gitflow.core.mode is set
+        [ $1 ] && [ "$1" = '-f' ] && UPDATE=0;
+        if has_local_changes; then
+            error 'You have local changes to your GitFlow repository';
+            error 'Please stash or commit them first';
+            fill_n _SEP_LEN '*';
+            exit 1;
+        fi
 
-    # always start on master branch
-    if [ "$current" != 'master' ] ; then
-        git_do checkout master;
-    fi
-
-    [ ! -n $UPDATE ] || UPDATE=1;
-    lastUpdate=$(git_do config --get gitflow.core.lastupdate);
-    if [ $? -eq 1 ] ; then
-        lastUpdate=$(now);
-        git_do config --add gitflow.core.lastupdate $lastUpdate;
-        UPDATE=0;
-    fi
-
-    timestamp=$(timestamp 7);
-    if [ $lastUpdate -gt $timestamp ] ; then
-        info 'No update necessary - skipping';
-        helper_lastBranch "$current";
-        cd $CWD;
-        fill_n _SEP_LEN '*';
-        return 0;
-    fi
-
-    if [ $lastUpdate -ge $timestamp ] || [ $UPDATE -eq 0 ]; then
-        info 'Checking for updates to GitFlow';
+        # always start on master branch
+        if [ $FORCE_MASTER -eq 0 ] && [ "$current" != 'master' ] ; then
+            git_do checkout master;
+        fi
 
         git_compare_branches master $ORIGIN/master;
         retVal=$?;
@@ -152,7 +154,7 @@ cmd_update() {
             UPDATE=0;
         fi
     fi
-    if [ $UPDATE -eq 1 ] ; then
+    if [ $UPDATE -ne 1 ] ; then
         info 'There are updates available for GitFlow';
         echo -n '** Do you wish to install them? > ';
         read inst;
@@ -234,7 +236,7 @@ main() {
 	fi
 
     if [ "$SUBCOMMAND" = "update" ] ; then
-        cmd_update '-f';
+        cmd_update "$@";
         exit $?;
     else
         # auto-update if not run in 7 days
