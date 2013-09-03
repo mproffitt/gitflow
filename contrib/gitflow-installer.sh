@@ -49,6 +49,28 @@ case "$1" in
 		exit
 		;;
 	*)
+        if [ "$(uname)" = "Linux" ] && [ "$1" != '-f' ] ; then
+            installed=1;
+            if which dpgk &>/dev/null ; then
+                dpkg -s git-flow | grep -q 'installed';
+                installed=$?;
+            elif which rpm &>/dev/null ; then
+                rpm -qa | grep -q git-flow;
+                installed=$?;
+            elif ls /usr/lib/git-core/git-flow &>/dev/null ; then
+                installed=0;
+            fi
+
+            if [ $installed -eq 0 ] ; then
+                echo "/usr/lib/git-core/git-flow exists.";
+                echo "Do you have git-flow.deb or git-flow.rpm installed?";
+                echo "If so, you must remove it before installing this version.";
+                echo "Alternatively you may force installation by re-running the installer with the -f flag";
+                echo "Aborting installation.";
+                exit 1;
+            fi
+        fi
+
 		gitstatus=$(git st 2>&1 | cut -d: -f1);
 		if [ "$(basename `pwd`)" != "$REPO_NAME" ] || [ "fatal" = "$gitstatus" ] ; then
 			echo "Installing git-flow to $INSTALL_PREFIX"
