@@ -333,6 +333,14 @@ require_remote_branch() {
 }
 
 require_branch() {
+    # If local branch never existed or has been deleted but
+    # remote branch is there, checkout first.
+    # This will help ensure that all branches get cleaned up properly.
+    if ! git_local_branch_exists "$1" && git_remote_branch_exists "$1" ; then
+        require_clean_working_tree;
+        git_do checkout "$1";
+    fi
+
 	if ! has $1 $(git_all_branches); then
 		die "Branch '$1' does not exist and is required."
 	fi

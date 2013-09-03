@@ -189,7 +189,7 @@ cmd_start() {
 }
 
 cmd_finish() {
-	DEFINE_boolean fetch false "fetch from $ORIGIN before performing finish" F
+	DEFINE_boolean nofetch false "don't fetch from $ORIGIN before performing finish" F
 	DEFINE_boolean sign false "sign the release tag cryptographically" s
 	DEFINE_string signingkey "" "use the given GPG-key for the digital signature (implies -s)" u
 	DEFINE_string message "" "use the given tag message" m
@@ -198,6 +198,7 @@ cmd_finish() {
 	DEFINE_boolean keep false "keep branch after performing finish" k
 	DEFINE_boolean notag false "don't tag this release" n
 	DEFINE_boolean squash false "squash release during merge" S
+    DEFINE_boolean noprune false "don't prune branches before finish" P
 
 	parse_args "$@"
 	require_version_arg
@@ -210,11 +211,14 @@ cmd_finish() {
 	# sanity checks
 	require_branch "$BRANCH"
 	require_clean_working_tree
-	if flag fetch; then
+	if noflag nofetch; then
 		git_do fetch -q "$ORIGIN" "$MASTER_BRANCH" || \
 		  die "Could not fetch $MASTER_BRANCH from $ORIGIN."
 		git_do fetch -q "$ORIGIN" "$DEVELOP_BRANCH" || \
 		  die "Could not fetch $DEVELOP_BRANCH from $ORIGIN."
+        # fetch all other branches and tags
+        git_do fetch -q origin;
+        git_do fetch --tags;
 	fi
 	if has "$ORIGIN/$MASTER_BRANCH" $(git_remote_branches); then
 		require_branches_equal "$MASTER_BRANCH" "$ORIGIN/$MASTER_BRANCH"
@@ -222,6 +226,11 @@ cmd_finish() {
 	if has "$ORIGIN/$DEVELOP_BRANCH" $(git_remote_branches); then
 		require_branches_equal "$DEVELOP_BRANCH" "$ORIGIN/$DEVELOP_BRANCH"
 	fi
+
+    if noflag noprune ; then
+        info "Cleaning up stale branches";
+        git_do remote prune origin;
+    fi
 
 	# try to merge into master
 	# in case a previous attempt to finish this release branch has failed,
