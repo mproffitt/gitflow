@@ -1,6 +1,18 @@
 #!/bin/bash
-[ ! -z $_username ] || _username="";
 
+##
+# If we are running this as an independant command we need to
+# source in the common functions and set the GITFLOW_DIR path.
+if [ -z $GITFLOW_DIR ] ; then
+    [ "$(dirname $0)" = '.' ] && GITFLOW_DIR=$(pwd) || GITFLOW_DIR=$(dirname $0);
+    ls -l $0 | grep -q ^l && GITFLOW_DIR=$(dirname `ls -l $0 | awk '{print $NF}'`);
+    export GITFLOW_DIR=$(echo "$GITFLOW_DIR" | sed -e 's,\\,/,g');
+
+    source "$GITFLOW_DIR/common/common-functions";
+fi
+
+[ ! -z $_username ] || _username="";
+[ ! -z $NAME ] || NAME='';
 ##
 # Gets the JIRA username for the current user.
 #
@@ -11,9 +23,14 @@
 #
 function _get_username ()
 {
-    echo "Please enter your jira username ($(whoami)): \c";
-    read _username;
-    if [ -z $username ] ; then
+    if [ -z $JIRA_USERNAME ] ; then
+        echo -n "Please enter your jira username ($(whoami)): ";
+        read _username;
+    else
+        _username=$JIRA_USERNAME;
+    fi
+
+    if [ -z $_username ] ; then
         _username=$(whoami);
     fi
 }
@@ -34,10 +51,19 @@ function _read_password ()
         _get_username;
     fi
 
-    echo "Please enter the jira password for $_username: \c";
-    read -s password;
-    echo;
-    _add_feature_to_release $_username $password $feature $release;
+    if [ -z $JIRA_PASSWORD ] ; then
+        echo -n "Please enter the jira password for $_username: ";
+        read -s password;
+        echo;
+    else
+        password=$JIRA_PASSWORD;
+    fi
+
+    if [ -z $password ] ; then
+        _read_password "$feature" "$release";
+    else
+        _add_feature_to_release $_username $password $feature $release;
+    fi
 }
 
 ##
@@ -52,24 +78,102 @@ function _read_password ()
 #
 function _add_feature_to_release ()
 {
+    local saveifs=$IFS;
+    IFS=$'\n';
+
+    local json_exec="$GITFLOW_DIR/json-sh/JSON.sh";
     local username=$1;
     local password=$2;
     local feature=$3;
     local release=$4;
-    local type='Change Management';
     local repoName=$(_get_repo_name);
 
-    local address='http://jira.internal.plus.net/rest/api/latest/issueLink';
+    local address='http://jira.internal.plus.net/rest/api/latest';
 
-    local data='{ "linkType": "'$type'", "fromIssueKey": "'$release'", "toIssueKey": "'$feature'", ';
-          data=$data'"comment": { "body": "Added feature '$feature' of '$repoName' to release" } }';
-    local result=$(
-        curl -D- -u $username:$password -X POST -H "Content-Type: application/json" --data "$data" $address 2>/dev/null
-    );
-    local responseCode=$(echo $result | grep 'HTTP' | cut -d\  -f2);
+    local response=($(
+        curl --silent -D- -u $username:$password -X GET -H "Content-Type: application/json" $address/issue/$release
+    ));
+
+    local responseCode=$(echo ${response[0]} | cut -d\  -f2);
+    local body=${response[${#response[@]} - 1]};
+    if is_valid_request $(echo $responseCode); then
+        local repos=$(
+            echo $body |
+                $json_exec |
+                grep '^\["fields","customfield_10526"\].*' |
+                sed 's/"//g' |
+                awk '{print $2}'
+        );
+
+        if [ -z $repos ] ; then
+            repos="$repoName";
+        elif ! echo $repos | grep -q $repoName ; then
+            repos="$repos\r\n$repoName";
+        else
+            info "Not adding $repoName - already added";
+        fi
+        repos=$(echo $repos | sed 's/\\r\\n/ /g' | tr " " "\n" | sort | tr "\n" " " | sed 's/^[ \t]*//;s/[ \t]*$//;s/ /\\r\\n/g');
+        local json='{ "update" : { "customfield_10526" : [{"set" : "'$repos'"}] } }';
+
+        response=($(
+            curl -D- -u $username:$password \
+                -X PUT --data "$json"       \
+                -H "Content-Type: application/json" \
+                $address/issue/$release 2>/dev/null
+        ));
+    fi
+
+    responseCode=$(echo ${response[0]} | cut -d\  -f2);
+    body=${response[${#response[@]} - 1]};
+
+    if is_valid_request $responseCode; then
+        info "Added $repoName to list of release repos";
+        response=($(
+            curl --silent -D- -u $username:$password -X GET -H "Content-Type: application/json" $address/issue/$release/remotelink
+        ));
+
+        responseCode=$(echo ${response[0]} | cut -d\  -f2);
+        body=${response[${#response[@]} - 1]};
+        if is_valid_request $(echo $responseCode); then
+            if ! echo $body | grep -q $feature ; then
+                local description=$(echo "$(_get_name)" | cut -d- -f4- | sed 's/-/ /g');
+                description=$feature' - '$(tr '[:lower:]' '[:upper:]' <<< ${description:0:1})${description:1};
+                json='{ "object" : { "url":"http://jira.internal.plus.net/browse/'$feature'", "title":"'$description'" } }';
+
+                response=($(
+                    curl -D- -u $username:$password \
+                        -X POST --data $json      \
+                        -H "Content-Type: application/json" \
+                        $address/issue/$release/remotelink 2>/dev/null
+                ));
+
+                responseCode=$(echo ${response[0]} | cut -d\  -f2);
+                body=${response[${#response[@]} - 1]};
+
+                if is_valid_request $responseCode; then
+                    info "Linked feature $feature to $release";
+                    IFS=$saveifs;
+                    return 0;
+                fi
+            else
+                info "Feature $feature has already been linked to $release";
+                return 0;
+            fi
+        fi
+    fi
+    warn "Invalid JSON request to JIRA API";
+    warn "Failed to link feature to http://jira.internal.plus.net/browse/$release";
+    warn "Please update this manually";
+    IFS=$saveifs;
+    return 1;
+}
+
+
+function is_valid_request()
+{
+    local responseCode=$1;
     case $responseCode in
-        200)
-            echo "Feature linked to Release Management task $release";
+        20[0-5])
             return 0;
         ;;
         400)
@@ -102,8 +206,6 @@ function _add_feature_to_release ()
         ;;
         500)
             echo "Malformed request. Please correct supplied JSON and try again" >&2;
-            echo "JSON String:" >&2;
-            echo "$data" >&2;
             return 5;
         ;;
     esac
@@ -112,7 +214,7 @@ function _add_feature_to_release ()
 ##
 # Works out the name of the current repository
 #
-# @return int 1 if the current directory or parent is not a git repo
+# @repositoryeturn int 1 if the current directory or parent is not a git repo
 #
 function _get_repo_name ()
 {
@@ -132,16 +234,30 @@ function _get_repo_name ()
 }
 
 ##
+# Gets the feature name from the current branch
+#
+# @return void
+#
+function _get_name ()
+{
+    if [ ! -z $NAME ] ; then
+        echo $NAME | sed 's/feature-//';
+    else
+        echo $(git rev-parse --abbrev-ref HEAD | cut -d- -f2- );
+    fi
+}
+
+##
 # Gets the JIRA ticket from the current feature branch name
 #
 # @return void
 #
 function _get_ticket_id_from_feature_name ()
 {
-    if [ "$NAME" = "" ] ; then
-        NAME=$(git rev-parse --abbrev-ref HEAD | cut -d- -f2- );
+    if [ -z $NAME ] ; then
+        NAME=$(_get_name);
     fi
-    echo feature-PII-282-mp-test-feature | grep ^feature &>/dev/null;
+    echo $NAME | grep -q ^feature;
     if [ $? -eq 0 ] ; then
         NAME=$(echo $NAME | sed 's/^feature-//');
     fi

@@ -84,6 +84,24 @@ cmd_update() {
     CWD=$(pwd);
     cd $GITFLOW_DIR;
 
+    mode=$(git_do config --get gitflow.core.mode);
+    modeRetVal=$?;
+    if [ $modeRetVal -eq 2 ] ; then
+        error 'Invalid or broken .git/config - please fix and try again';
+        fill_n _SEP_LEN '*';
+        exit 1;
+    fi
+    if [ $modeRetVal -eq 1 ] || [ "$mode" != 'develop' ]; then
+        if [ "$mode" = 'skipupdate' ] ; then
+            info "Skip update mode enabled - skipping update check";
+            cd $CWD;
+            return 0;
+        elif [ "$current" != 'master' ]; then
+            debug 'Invalid production mode - forcing master branch';
+            FORCE_MASTER=0;
+        fi
+    fi
+
     fill_n _SEP_LEN '*';
     info 'UPDATING GitFlow';
 
@@ -99,20 +117,6 @@ cmd_update() {
     current=$(git_do rev-parse --abbrev-ref HEAD);
 
     FORCE_MASTER=1; # force master branch unless gitflow.core.mode is set
-
-    mode=$(git_do config --get gitflow.core.mode);
-    modeRetVal=$?;
-    if [ $modeRetVal -eq 2 ] ; then
-        error 'Invalid or broken .git/config - please fix and try again';
-        fill_n _SEP_LEN '*';
-        exit 1;
-    fi
-    if [ $modeRetVal -eq 1 ] || [ "$mode" != 'develop' ]; then
-        if [ "$current" != 'master' ]; then
-            debug 'Invalid production mode - forcing master branch';
-            FORCE_MASTER=0;
-        fi
-    fi
 
     # always start on master branch
     if [ "$current" != 'master' ] ; then

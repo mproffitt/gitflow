@@ -238,20 +238,25 @@ cmd_cleanup() {
     DEFINE_boolean squash false "squash feature during merge" S
     DEFINE_boolean keep false "keep branch after performing finish" k
     DEFINE_boolean force_delete false "force delete feature branch after finish" D
+    DEFINE_boolean assume_yes false "Assume we want to cleanup and don't ask silly questions" a
     parse_args "$@"
     expand_nameprefix_arg_or_current
 
-    fill_n _SEP_LEN '#';
-    centre '#' 'WARNING';
-    fill_n _SEP_LEN '#';
-    echo '#';
-    echo "# You are about to cleanup feature $BRANCH";
-    echo "# Before continuing, please check that the build is completely green.";
-    echo "# If you are not certain, ask someone to check for you";
-    echo '#';
-    echo -n "# Is the build green (y/n)? > ";
-    read buildsuccess;
-    fill_n _SEP_LEN '#';
+    if flag assume_yes; then
+        buildsuccess='y';
+    else
+        fill_n _SEP_LEN '#';
+        centre '#' 'WARNING';
+        fill_n _SEP_LEN '#';
+        echo '#';
+        echo "# You are about to cleanup feature $BRANCH";
+        echo "# Before continuing, please check that the build is completely green.";
+        echo "# If you are not certain, ask someone to check for you";
+        echo '#';
+        echo -n "# Is the build green (y/n)? > ";
+        read buildsuccess;
+        fill_n _SEP_LEN '#';
+    fi
 
     if [ "$buildsuccess" = "y" ] ; then
         helper_finish_cleanup;
