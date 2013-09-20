@@ -101,18 +101,18 @@ cmd_update() {
         UPDATE=0;
     fi
 
-    info 'Checking for updates to GitFlow';
+    pinfo 'Checking for updates to GitFlow';
 
     timestamp=$(timestamp 7);
     if noflag force && [ $lastUpdate -ge $timestamp ] && [ $UPDATE -ne 0 ]; then
-        info "No update required (updated within last 7 days)";
+        pinfo "No update required (updated within last 7 days)";
         cd $CWD;
         return 0;
     fi
 
     if [ $modeRetVal -eq 1 ] || [ "$mode" != 'develop' ]; then
         if [ "$mode" = 'skipupdate' ] ; then
-            info "Skip update mode enabled - skipping update check";
+            pinfo "Skip update mode enabled - skipping update check";
             cd $CWD;
             return 0;
         elif [ "$current" != 'master' ]; then
@@ -148,14 +148,14 @@ cmd_update() {
         git_compare_branches master $ORIGIN/master;
         retVal=$?;
         if [ $retVal -eq 0 ] ; then
-            info 'No updates available';
+            pinfo 'No updates available';
             UPDATE=1;
         elif [ $retVal -eq 1 ] ; then
             UPDATE=0;
         fi
     fi
     if [ $UPDATE -eq 0 ] ; then
-        info 'There are updates available for GitFlow';
+        pinfo 'There are updates available for GitFlow';
         echo -n '** Do you wish to install them? > ';
         read inst;
         if [ "$inst" = "n" ] || [ "$isnt" = "no" ] ; then
