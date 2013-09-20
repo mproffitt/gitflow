@@ -112,7 +112,7 @@ git_do() {
                 debug --no-log $line 2>&1;
             else
                 if ! echo ${_GIT_NO_INFO_COMMANDS[@]} | grep -q $1; then
-                    info --no-log $line;
+                    pinfo --no-log $line;
                 else
                     echo $line;
                 fi

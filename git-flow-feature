@@ -68,7 +68,7 @@ cmd_list() {
 	parse_args "$@"
 
     fill_n _SEP_LEN '**'
-    info "Current active feature branches";
+    pinfo "Current active feature branches";
 	local feature_branches
 	local current_branch
 	local short_names
@@ -144,7 +144,7 @@ cmd_list() {
         ;;
         [0-9]*)
             branch=${listBranches[$(($answer - 1))]};
-            info "Switching to branch $branch";
+            pinfo "Switching to branch $branch";
             git flow feature checkout $branch;
             return $?;
         ;;
@@ -459,14 +459,14 @@ helper_finish_cleanup() {
 
 helper_finish_notice() {
     fill_n _SEP_LEN '**';
-    info "Finished feature $BRANCH";
-    info "- The feature branch '$BRANCH' was merged into '$DEVELOP_BRANCH'"
+    pinfo "Finished feature $BRANCH";
+    pinfo "- The feature branch '$BRANCH' was merged into '$DEVELOP_BRANCH'"
     if [ $_PUSH_FAILED -ne 0 ] ; then
         error "- Failed to push to remote server";
     fi
     fill_n _SEP_LEN '**';
-    info "    Once the build is green you can remove this feature with:";
-    info "    \$ git-flow feature cleanup $NAME";
+    pinfo "    Once the build is green you can remove this feature with:";
+    pinfo "    \$ git-flow feature cleanup $NAME";
     fill_n _SEP_LEN '*';
 }
 

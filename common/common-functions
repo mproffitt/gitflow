@@ -79,7 +79,7 @@ die() {
 #
 # @return void
 #
-info() {
+pinfo() {
     local nolog=1;
     if [ "$1" = '--no-log' ] ; then
         nolog=0;
@@ -245,7 +245,7 @@ echo_command() {
 # @return LAST_EXIT_STATUS
 #
 exec() {
-    info "Executing command '$@'";
+    pinfo "Executing command '$@'";
     if $_TEST_MODE ; then
         echo_command $@;
     else
