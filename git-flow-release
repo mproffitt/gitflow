@@ -228,7 +228,7 @@ cmd_finish() {
 	fi
 
     if noflag noprune ; then
-        info "Cleaning up stale branches";
+        pinfo "Cleaning up stale branches";
         git_do remote prune origin;
     fi
 

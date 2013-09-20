@@ -110,7 +110,7 @@ function _add_feature_to_release ()
         elif ! echo $repos | grep -q $repoName ; then
             repos="$repos\r\n$repoName";
         else
-            info "Not adding $repoName - already added";
+            pinfo "Not adding $repoName - already added";
         fi
         repos=$(echo $repos | sed 's/\\r\\n/ /g' | tr " " "\n" | sort | tr "\n" " " | sed 's/^[ \t]*//;s/[ \t]*$//;s/ /\\r\\n/g');
         local json='{ "update" : { "customfield_10526" : [{"set" : "'$repos'"}] } }';
@@ -127,7 +127,7 @@ function _add_feature_to_release ()
     body=${response[${#response[@]} - 1]};
 
     if is_valid_request $responseCode; then
-        info "Added $repoName to list of release repos";
+        pinfo "Added $repoName to list of release repos";
         response=($(
             curl --silent -D- -u $username:$password -X GET -H "Content-Type: application/json" $address/issue/$release/remotelink
         ));
@@ -151,12 +151,12 @@ function _add_feature_to_release ()
                 body=${response[${#response[@]} - 1]};
 
                 if is_valid_request $responseCode; then
-                    info "Linked feature $feature to $release";
+                    pinfo "Linked feature $feature to $release";
                     IFS=$saveifs;
                     return 0;
                 fi
             else
-                info "Feature $feature has already been linked to $release";
+                pinfo "Feature $feature has already been linked to $release";
                 return 0;
             fi
         fi
