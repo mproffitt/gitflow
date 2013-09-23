@@ -7,9 +7,8 @@ if [ -z $GITFLOW_DIR ] ; then
     [ "$(dirname $0)" = '.' ] && GITFLOW_DIR=$(pwd) || GITFLOW_DIR=$(dirname $0);
     ls -l $0 | grep -q ^l && GITFLOW_DIR=$(dirname `ls -l $0 | awk '{print $NF}'`);
     export GITFLOW_DIR=$(echo "$GITFLOW_DIR" | sed -e 's,\\,/,g');
-
-    source "$GITFLOW_DIR/common/common-functions";
 fi
+source "$GITFLOW_DIR/common/common-functions";
 
 [ ! -z $_username ] || _username="";
 [ ! -z $NAME ] || NAME='';
@@ -105,7 +104,7 @@ function _add_feature_to_release ()
                 awk '{print $2}'
         );
 
-        if [ -z $repos ] ; then
+        if [ -z $repos ] || [ "$repos" = "null" ] ; then
             repos="$repoName";
         elif ! echo $repos | grep -q $repoName ; then
             repos="$repos\r\n$repoName";
