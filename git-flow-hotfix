@@ -270,7 +270,7 @@ cmd_finish() {
 		git_do fetch -q "$ORIGIN" "$DEVELOP_BRANCH" || \
 		  die "Could not fetch $DEVELOP_BRANCH from $ORIGIN."
         # fetch all other branches and tags
-        git_do fetch -q origin;
+        git_do fetch -p -q origin;
         git_do fetch --tags;
 	fi
 
