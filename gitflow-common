@@ -562,7 +562,7 @@ git_common_cleanup() {
 
     pinfo "updating $DEVELOP_BRANCH";
     git_do checkout "$DEVELOP_BRANCH";
-    git_do pull origin "$DEVELOP_BRANCH" || die "Could not pull changes from remote $DEVELOP_BRANCH branch";
+    git_do pull "$ORIGIN" "$DEVELOP_BRANCH" || die "Could not pull changes from remote $DEVELOP_BRANCH branch";
 
     git_do checkout $currentBranch;
     merged=$(git branch --merged | awk '{print $NF}' | grep -v '^master\|^develop.*\|'$currentBranch'$');
