@@ -545,3 +545,43 @@ invalid_branch_for_command() {
     die "Cannot run \`git flow $(echo $PREFIX | sed 's/.$//') update' command on a $(echo `current_branch` | cut -d- -f1) branch";
 }
 
+##
+# Performs a cleanup of the local repository
+#
+# @return void
+#
+git_common_cleanup() {
+    gitflow_load_settings;
+    pinfo "Cleaning up local repository";
+    git_do fetch -p origin;
+    git_do fetch --tags;
+    local currentBranch=$(git_current_branch);
+    pinfo "Updating master branch";
+    git_do checkout master;
+    git_do pull origin master || die "Could not pull changes from remote  master branch";
+
+    pinfo "updating $DEVELOP_BRANCH";
+    git_do checkout "$DEVELOP_BRANCH";
+    git_do pull origin develop || die "Could not pull changes from remote $DEVELOP_BRANCH branch";
+
+    git_do checkout $currentBranch;
+    merged=$(git branch --merged | awk '{print $NF}' | grep -v '^master\|^develop.*\|'$currentBranch'$');
+    if [ "$merged" != "" ] ; then
+        warn "The following branches have been merged and will now be deleted";
+        warn "This will only delete them from your local repository and will not delete them from the remote";
+        for branch in $merged; do
+            warn '*'$branch;
+        done
+
+        for branch in $merged; do
+            pinfo "Cleaning up local branch $branch";
+            echo -n "# Are you sure you want to delete $branch? (y/n) > ";
+            read deleteBranch;
+
+            if [ "$(echo $deleteBranch | tr '[:upper:]' '[:lower:]')" = 'y' ] ; then
+                git_do branch -D $branch;
+            fi
+        done
+    fi
+}
+
