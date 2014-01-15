@@ -246,6 +246,8 @@ main() {
         cmd_update;
     fi
 
+    git_common_cleanup
+
 	# run command
 	. "$GITFLOW_DIR/git-flow-$SUBCOMMAND"
 	FLAGS_PARENT="git flow $SUBCOMMAND"
