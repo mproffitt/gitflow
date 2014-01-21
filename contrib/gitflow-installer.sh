@@ -71,7 +71,7 @@ case "$1" in
             fi
         fi
 
-		gitstatus=$(git st 2>&1 | cut -d: -f1);
+		gitstatus=$(git status 2>&1 | cut -d: -f1);
 		if [ "$(basename `pwd`)" != "$REPO_NAME" ] || [ "fatal" = "$gitstatus" ] ; then
 			echo "Installing git-flow to $INSTALL_PREFIX"
 			if [ -d "$REPO_NAME" -a -d "$REPO_NAME/.git" ] ; then
