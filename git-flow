@@ -246,7 +246,9 @@ main() {
         cmd_update;
     fi
 
-    git_common_cleanup
+    if [ "$SUBCOMMAND" != 'cleanup' ] ; then
+        git_common_cleanup;
+    fi
 
 	# run command
 	. "$GITFLOW_DIR/git-flow-$SUBCOMMAND"
