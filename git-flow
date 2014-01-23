@@ -246,7 +246,9 @@ main() {
         cmd_update;
     fi
 
-    if [ "$SUBCOMMAND" != 'cleanup' ] ; then
+    if [ "$SUBCOMMAND" != 'cleanup' ] &&
+       [ "$SUBCOMMAND" != 'version' ];
+    then
         git_common_cleanup;
     fi
 
