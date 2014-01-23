@@ -36,7 +36,7 @@
 # policies, either expressed or implied, of Vincent Driessen.
 #
 
-GITFLOW_VERSION=$(git tag | grep '[0-9].[0-9].*' | tail -n1);
+GITFLOW_VERSION='';
 
 versionCompare () {
     if [[ $1 == $2 ]]
@@ -86,11 +86,11 @@ testvercomp () {
 
 getVersion() {
     latest='';
-    versions=$(git tag | grep '[0-9].[0-9].*');
+    versions=$(git tag | grep '^[0-9]\+.[0-9]\+\(.[0-9]\)*$');
     for version in $versions; do
         testvercomp $GITFLOW_VERSION $version '<';
         if [ $? -eq 1 ] ; then
-            GITFLOW_VERSION=$version;
+            export GITFLOW_VERSION=$version;
         fi
     done;
 }
@@ -104,8 +104,12 @@ usage() {
 }
 
 cmd_default() {
+    local cwd=$(pwd);
+    cd $GITFLOW_DIR;
+    export GITFLOW_VERSION=$(git tag | grep '^[0-9].[0-9]\(.[0-9]\)*' | tail -n1);
     getVersion;
-	pinfo "Current version of GitFlow is: $GITFLOW_VERSION"
+    pinfo "Current version of GitFlow is: $GITFLOW_VERSION"
+    cd $cwd;
 }
 
 cmd_init() {
