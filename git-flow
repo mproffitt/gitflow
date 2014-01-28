@@ -125,6 +125,7 @@ cmd_update() {
         exit 1;
     fi
 
+    git_do fetch origin &>/dev/null;
     if flag force || [ $lastUpdate -lt $timestamp ] || [ $UPDATE -eq 0 ]; then
         if [ $modeRetVal -eq 2 ] ; then
             error 'Invalid or broken .git/config - please fix and try again';
@@ -164,7 +165,6 @@ cmd_update() {
             return 0;
         fi
 
-        git_do fetch origin;
         git_do pull --rebase $ORIGIN master || die '|** -- Could not pull from '$ORIGIN;
 
         git_do checkout develop;
@@ -184,7 +184,7 @@ cmd_update() {
         done
 
         # re-run gitflow-installer to ensure all links are maintained.
-        sudo $GITFLOW_DIR/contrib/gitflow-installer;
+        sudo $GITFLOW_DIR/contrib/gitflow-installer.sh;
     fi
 
     helper_lastBranch "$current";
@@ -246,12 +246,6 @@ main() {
         cmd_update;
     fi
 
-    if [ "$SUBCOMMAND" != 'cleanup' ] &&
-       [ "$SUBCOMMAND" != 'version' ];
-    then
-        git_common_cleanup;
-    fi
-
 	# run command
 	. "$GITFLOW_DIR/git-flow-$SUBCOMMAND"
 	FLAGS_PARENT="git flow $SUBCOMMAND"
@@ -263,6 +257,13 @@ main() {
 	if [ "$1" != "" ] && { ! echo "$1" | grep -q "^-"; } then
 		SUBACTION="$1"; shift
 	fi
+
+    if [ "$SUBCOMMAND" != 'version' ] &&
+       [ "$SUBACTION"  != 'cleanup' ];
+    then
+        git_common_cleanup;
+    fi
+
 	if ! type "cmd_$SUBACTION" >/dev/null 2>&1; then
 		warn "Unknown subcommand: '$SUBACTION'"
 		usage
