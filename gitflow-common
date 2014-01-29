@@ -545,35 +545,53 @@ invalid_branch_for_command() {
     die "Cannot run \`git flow $(echo $PREFIX | sed 's/.$//') update' command on a $(echo `current_branch` | cut -d- -f1) branch";
 }
 
+get_branch_prefix() {
+    local type=$1;
+    if echo 'feature release hotfix support' | grep -q $type ; then
+        echo $(eval "git config --get gitflow.prefix.$type");
+        return 0;
+    fi
+    return 1;
+}
+
+get_merged_branches() {
+    local merged='';
+    gitflow_load_settings;
+    pinfo "Cleaning up local repository";
+    git_do fetch -p origin;
+    git_do fetch --tags;
+    local currentBranch=$(git_current_branch);
+    local _branch="$(get_branch_prefix $SUBCOMMAND)$1";
+
+    pinfo "Updating $MASTER_BRANCH branch";
+    git_do checkout "$MASTER_BRANCH";
+    git_do pull "$ORIGIN" "$MASTER_BRANCH" || die "Could not pull changes from remote  master branch";
+    merged=$(git branch --merged | awk '{print $NF}' | grep -v "^master\|^develop\|$currentBranch\|^$_branch$")' ';
+
+    pinfo "updating $DEVELOP_BRANCH";
+    git_do checkout "$DEVELOP_BRANCH";
+    git_do pull "$ORIGIN" "$DEVELOP_BRANCH" || die "Could not pull changes from remote $DEVELOP_BRANCH branch";
+    merged+=$(git branch --merged | awk '{print $NF}' | grep -v "^master\|^develop\|^$currentBranch\|^$_branch$")' ';
+
+    echo $merged | tr ' ' "\n" | sort -df | uniq;
+}
+
 ##
 # Performs a cleanup of the local repository
 #
 # @return void
 #
 git_common_cleanup() {
-    gitflow_load_settings;
-    pinfo "Cleaning up local repository";
-    git_do fetch -p origin;
-    git_do fetch --tags;
-    local currentBranch=$(git_current_branch);
-    pinfo "Updating $MASTER_BRANCH branch";
-    git_do checkout "$MASTER_BRANCH";
-    git_do pull "$ORIGIN" "$MASTER_BRANCH" || die "Could not pull changes from remote  master branch";
-
-    pinfo "updating $DEVELOP_BRANCH";
-    git_do checkout "$DEVELOP_BRANCH";
-    git_do pull "$ORIGIN" "$DEVELOP_BRANCH" || die "Could not pull changes from remote $DEVELOP_BRANCH branch";
-
+    local MERGED_BRANCHES="$(get_merged_branches $1)";
     git_do checkout $currentBranch;
-    merged=$(git branch --merged | awk '{print $NF}' | grep -v '^master\|^develop.*\|'$currentBranch'$');
-    if [ "$merged" != "" ] ; then
+    if [ "$(echo $MERGED_BRANCHES | sed 's/ //g')" != "" ] ; then
         warn "The following branches have been merged and will now be deleted";
         warn "This will only delete them from your local repository and will not delete them from the remote";
-        for branch in $merged; do
-            warn '*'$branch;
+        for branch in $MERGED_BRANCHES; do
+            warn '- '$branch;
         done
 
-        for branch in $merged; do
+        for branch in $MERGED_BRANCHES; do
             pinfo "Cleaning up local branch $branch";
             echo -n "# Are you sure you want to delete $branch? (y/n) > ";
             read deleteBranch;

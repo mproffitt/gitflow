@@ -241,7 +241,7 @@ main() {
     if [ "$SUBCOMMAND" = "update" ] ; then
         cmd_update "$@";
         exit $?;
-    else
+    elif [ "$SUBCOMMAND" != 'version' ]; then
         # auto-update if not run in 7 days
         cmd_update;
     fi
@@ -261,7 +261,7 @@ main() {
     if [ "$SUBCOMMAND" != 'version' ] &&
        [ "$SUBACTION"  != 'cleanup' ];
     then
-        git_common_cleanup;
+        git_common_cleanup "$@";
     fi
 
 	if ! type "cmd_$SUBACTION" >/dev/null 2>&1; then
