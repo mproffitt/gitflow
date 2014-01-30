@@ -110,6 +110,10 @@ git_do() {
             elif echo $line | grep -q '^hint' ; then
                 line=$(echo $line | cut -d\  -f2-);
                 debug --no-log $line 2>&1;
+            elif echo $line | grep -q '^Deleted' ; then
+                word="$CYAN[$(echo $line | cut -d\  -f1 | tr '[:lower:]' '[:upper:]')]$RESET";
+                line="$word $(echo $line | cut -d\  -f2-)";
+                echo $line;
             else
                 if ! echo ${_GIT_NO_INFO_COMMANDS[@]} | grep -q $1; then
                     pinfo --no-log $line;
@@ -558,14 +562,14 @@ get_merged_branches() {
     local merged='';
     gitflow_load_settings;
     pinfo "Cleaning up local repository";
-    git_do fetch -p origin;
-    git_do fetch --tags;
+    git_do fetch -p origin &>/dev/null;
+    git_do fetch --tags &>/dev/null;
     local currentBranch=$(git_current_branch);
     local _branch="$(get_branch_prefix $SUBCOMMAND)$1";
 
     pinfo "Updating $MASTER_BRANCH branch";
     git_do checkout "$MASTER_BRANCH";
-    git_do pull "$ORIGIN" "$MASTER_BRANCH" || die "Could not pull changes from remote  master branch";
+    git_do pull "$ORIGIN" "$MASTER_BRANCH" || die "Could not pull changes from remote master branch";
     merged=$(git branch --merged | awk '{print $NF}' | grep -v "^master\|^develop\|$currentBranch\|^$_branch$")' ';
 
     pinfo "updating $DEVELOP_BRANCH";
@@ -592,11 +596,9 @@ git_common_cleanup() {
         done
 
         for branch in $MERGED_BRANCHES; do
-            pinfo "Cleaning up local branch $branch";
-            echo -n "# Are you sure you want to delete $branch? (y/n) > ";
-            read deleteBranch;
+            pinfo "Cleaning up local branch '$branch'";
 
-            if [ "$(echo $deleteBranch | tr '[:upper:]' '[:lower:]')" = 'y' ] ; then
+            if yesno "Are you sure you want to delete $branch?"; then
                 git_do branch -D $branch;
             fi
         done
