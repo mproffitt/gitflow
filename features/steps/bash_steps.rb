@@ -10,8 +10,4 @@ Given /^I'm in "([^\"]*)"$/ do |dir|
 end
 
 Given /^I am running GitFlow(?: .*?)? commands$/ do
-    FileUtils.cd '/tmp'
-    FileUtils.rm_rf 'TestRepo'
-    FileUtils.mkdir 'TestRepo'
-    FileUtils.cd 'TestRepo'
 end
