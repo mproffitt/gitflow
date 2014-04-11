@@ -267,53 +267,22 @@ cmd_start() {
 	echo
 }
 
-cmd_cleanup() {
-    DEFINE_boolean fetch false "fetch from $ORIGIN before performing finish" F
-    DEFINE_boolean rebase false "rebase instead of merge" r
-    DEFINE_boolean squash false "squash feature during merge" S
-    DEFINE_boolean keep false "keep branch after performing finish" k
-    DEFINE_boolean force_delete false "force delete feature branch after finish" D
-    DEFINE_boolean assume_yes false "Assume we want to cleanup and don't ask silly questions" a
-    parse_args "$@"
-    expand_nameprefix_arg_or_current
-
-    if flag assume_yes; then
-        buildsuccess='y';
-    else
-        fill_n _SEP_LEN '#';
-        centre '#' 'WARNING';
-        fill_n _SEP_LEN '#';
-        echo '#';
-        echo "# You are about to cleanup feature $BRANCH";
-        echo "# Before continuing, please check that the build is completely green.";
-        echo "# If you are not certain, ask someone to check for you";
-        echo '#';
-        echo -n "# Is the build green (y/n)? > ";
-        read buildsuccess;
-        fill_n _SEP_LEN '#';
-    fi
-
-    if [ "$buildsuccess" = "y" ] ; then
-        helper_finish_cleanup;
-        # if a release feature has been specified (last arg) then
-        # link the feature branch to the release in jira.
-        lastParam=$(echo $@ | awk '{print $NF}');
-        if [ "$lastParam" != "$NAME" ] ; then
-            gitFlowDir=$(dirname $(ls -l `echo $0` | awk '{print $NF}'));
-            exec "$gitFlowDir/link-jira-issue" "$lastParam" "feature-$NAME";
-        fi
-    fi
-}
-
 cmd_finish() {
 	DEFINE_boolean fetch false "fetch from $ORIGIN before performing finish" F
 	DEFINE_boolean rebase false "rebase instead of merge" r
 	DEFINE_boolean squash false "squash feature during merge" S
+
+    DEFINE_boolean keep false "keep branch after performing finish" k
+    DEFINE_boolean force_delete false "force delete feature branch after finish" D
+
 	parse_args "$@"
 	expand_nameprefix_arg_or_current
 
 	# sanity checks
 	require_branch "$BRANCH"
+
+    local linkTicket=$(echo "$@" | awk '{print $NF}');
+    [ "$linkTicket" = "$NAME" ] && linkBranch='';
 
 	# detect if we're restoring from a merge conflict
 	if [ -f "$DOT_GIT_DIR/.gitflow/MERGE_BASE" ]; then
@@ -333,9 +302,9 @@ cmd_finish() {
 			# succesfull merge manually, or the merge was cancelled.
 			# We detect this using git_is_branch_merged_into()
 			if git_is_branch_merged_into "$BRANCH" "$FINISH_BASE"; then
-				rm -f "$DOT_GIT_DIR/.gitflow/MERGE_BASE"
-				helper_finish_notice
-				exit 0
+				rm -f "$DOT_GIT_DIR/.gitflow/MERGE_BASE";
+				helper_finish_cleanup $linkBranch;
+				exit 0;
 			else
 				# If the user cancelled the merge and decided to wait until later,
 				# that's fine. But we have to acknowledge this by removing the
@@ -419,10 +388,15 @@ cmd_finish() {
     _PUSH_FAILED=$?;
 
 	# when no merge conflict is detected, just clean up the feature branch
-	helper_finish_notice
+	helper_finish_cleanup $linkBranch;
 }
 
-helper_finish_cleanup() {
+##
+# Cleans up a branch after merge
+#
+helper_finish_cleanup()
+{
+    local issue="$1";
 	# sanity checks
 	require_branch "$BRANCH"
 	require_clean_working_tree
@@ -445,6 +419,12 @@ helper_finish_cleanup() {
         git_do push "$ORIGIN" ":$BRANCH"
 	fi
 
+    if [ ! -z $issue ] ; then
+        pinfo "Linking $BRANCH to $issue"
+        gitFlowDir=$(dirname $(ls -l `echo $0` | awk '{print $NF}'));
+        exec "$gitFlowDir/link-jira-issue" "$lastParam" "feature-$NAME";
+    fi
+
 	echo
 	echo "Summary of actions:"
 	#echo "- Merge conflicts were resolved"		# TODO: Add this line when it's supported
@@ -456,20 +436,6 @@ helper_finish_cleanup() {
 	echo "- You are now on branch '$DEVELOP_BRANCH'"
 	echo
 }
-
-helper_finish_notice() {
-    fill_n _SEP_LEN '**';
-    pinfo "Finished feature $BRANCH";
-    pinfo "- The feature branch '$BRANCH' was merged into '$DEVELOP_BRANCH'"
-    if [ $_PUSH_FAILED -ne 0 ] ; then
-        error "- Failed to push to remote server";
-    fi
-    fill_n _SEP_LEN '**';
-    pinfo "    Once the build is green you can remove this feature with:";
-    pinfo "    \$ git-flow feature cleanup $NAME";
-    fill_n _SEP_LEN '*';
-}
-
 
 cmd_publish() {
 	parse_args "$@"
