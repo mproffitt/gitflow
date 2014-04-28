@@ -93,7 +93,7 @@ __git_flow_init ()
 
 __git_flow_feature ()
 {
-	local subcommands="list start finish publish track diff rebase checkout pull help cleanup rename update"
+	local subcommands="list start finish publish track diff rebase checkout pull help rename update"
 	local subcommand="$(__git_find_on_cmdline "$subcommands")"
 	if [ -z "$subcommand" ]; then
 		__gitcomp "$subcommands"
