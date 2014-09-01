@@ -586,12 +586,17 @@ get_merged_branches() {
 # @return void
 #
 git_common_cleanup() {
+    local wd=$(pwd);
+    module_root;
+
+    local currentBranch=$(git_current_branch);
     MERGED_BRANCHES=$(get_merged_branches $1);
     if [ $? -eq 1 ] ; then
         exit 1;
     fi
 
     git_do checkout $currentBranch;
+    cd $wd;
     if [ "$(echo $MERGED_BRANCHES | sed 's/ //g')" != "" ] ; then
         warn "The following branches have been merged and will now be deleted";
         warn "This will only delete them from your local repository and will not delete them from the remote";
