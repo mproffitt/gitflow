@@ -92,14 +92,14 @@ cmd_update() {
     [ -n $ORIGIN ] && ORIGIN='origin';
     current=$(git_do rev-parse --abbrev-ref HEAD);
     lastUpdate=$(git_do config --get gitflow.core.lastupdate);
-    mode=$(git_do config --get gitflow.core.mode);
-    modeRetVal=$?;
-
     if [ $? -eq 1 ] ; then
         lastUpdate=$(now);
         git_do config --add gitflow.core.lastupdate $lastUpdate;
         UPDATE=0;
     fi
+
+    mode=$(git_do config --get gitflow.core.mode);
+    modeRetVal=$?;
 
     pinfo 'Checking for updates to GitFlow';
 
