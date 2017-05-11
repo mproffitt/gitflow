@@ -1,6 +1,6 @@
 [submodule "shFlags"]
 	path = shFlags
-	url  = http://git.internal.plus.net/plusnet/shFlags.git
+	url  = git@github.com:nvie/shFlags.git
 [submodule "json-sh"]
 	path = json-sh
-	url = https://github.com/dominictarr/JSON.sh.git
+	url = git@github.com:dominictarr/JSON.sh.git

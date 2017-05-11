@@ -426,7 +426,7 @@ function __talk ()
 {
     message=$(__translate "$@");
     voiceConfig;
-    say=$(which say);
+    say=$(which say 2>/dev/null);
     if [ $? -eq 0 ] && [ $(git config --global --get gitflow.core.say) -eq 0 ] ; then
         say -v $(git config --global --get gitflow.core.voice) "$@";
     fi

@@ -241,9 +241,9 @@ main() {
     if [ "$SUBCOMMAND" = "update" ] ; then
         cmd_update "$@";
         exit $?;
-    elif [ "$SUBCOMMAND" != 'version' ]; then
+    # elif [ "$SUBCOMMAND" != 'version' ]; then
         # auto-update if not run in 7 days
-        cmd_update;
+    #    cmd_update;
     fi
 
 	# run command
