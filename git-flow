@@ -258,9 +258,7 @@ main() {
 		SUBACTION="$1"; shift
 	fi
 
-    if [ "$SUBCOMMAND" != 'version' ] &&
-       [ "$SUBACTION"  != 'cleanup' ];
-    then
+    if grep -vq 'version\|cleanup\|init' <<<$SUBCOMMAND; then
         git_common_cleanup "$@";
     fi
 

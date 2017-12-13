@@ -60,7 +60,7 @@ has() {
 # @return bool
 #
 has_local_changes() {
-    git status | grep -q 'working directory clean\|nothing added to commit';
+    git status | grep -q 'working \(directory\|tree\) clean\|nothing \(added \)\?to commit';
     [ $? -eq 0 ] && return 1 || return 0;
 }
 
@@ -562,19 +562,33 @@ get_merged_branches() {
     local merged='';
     gitflow_load_settings;
     pinfo "Cleaning up local repository";
-    git_do fetch -p origin || { error "Could not fetch from the remote repository"; return 1; };
-    git_do fetch --tags    || { error "Could not fetch tags from the remote repository"; return 1; };
+
+    _timestamp=$(timestamp 60 60)
+    _last_update=$(git_do config --get gitflow.core.lastupdate)
+    if [ $? -eq 1 ]; then
+        _last_update=$(now);
+        git_do config --add gitflow.core.lastupdate $_last_update;
+    fi
+
+    # Fetch, no greater than 60 minute intervals
+    if [ $((($_last_update - $_timestamp) / 60 )) -ge 60 ]; then
+        pinfo 'Fetching updates from remote server'
+        git_do fetch -p origin || { error "Could not fetch from the remote repository"; return 1; };
+        git_do fetch --tags    || { error "Could not fetch tags from the remote repository"; return 1; };
+        git_do config --add gitflow.core.lastupdate $_timestamp;
+    fi
+
     local currentBranch=$(git_current_branch);
     local _branch="$(get_branch_prefix $SUBCOMMAND)$1";
 
     pinfo "Updating $MASTER_BRANCH branch";
     git_do checkout "$MASTER_BRANCH";
-    git_do pull "$ORIGIN" "$MASTER_BRANCH" || { error "Could not pull changes from remote master branch"; return 1; };
+    git_do merge "$ORIGIN/$MASTER_BRANCH" || { error "Could not merge changes from remote master branch"; return 1; };
     merged=$(git branch --merged | awk '{print $NF}' | grep -v "^master\|^develop\|$currentBranch\|^$_branch$")' ';
 
     pinfo "updating $DEVELOP_BRANCH";
     git_do checkout "$DEVELOP_BRANCH";
-    git_do pull "$ORIGIN" "$DEVELOP_BRANCH" || { error "Could not pull changes from remote $DEVELOP_BRANCH branch"; return 1; };
+    git_do merge "$ORIGIN/$DEVELOP_BRANCH" || { error "Could not merge changes from remote $DEVELOP_BRANCH branch"; return 1; };
     merged+=$(git branch --merged | awk '{print $NF}' | grep -v "^master\|^develop\|^$currentBranch\|^$_branch$")' ';
 
     echo $merged | tr ' ' "\n" | sort -df | uniq;

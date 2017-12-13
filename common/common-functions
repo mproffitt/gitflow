@@ -276,9 +276,10 @@ exec() {
 #
 timestamp() {
     lessDays=$1;
-    _sec=86400;
+    sec=86400;
+    [ ! -z $2 ] && sec=$2
     date=$(now);
-    echo $((date - (_sec * lessDays)));
+    echo $((date - (sec * lessDays)));
 }
 
 ##
